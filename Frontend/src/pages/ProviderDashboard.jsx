@@ -427,10 +427,29 @@ export default function ProviderDashboard() {
                             <span className="text-[10px] font-bold uppercase px-2 py-1 bg-slate-100 text-slate-500 rounded">{it.status}</span>
                           </div>
                           {it.status !== 'completed' && it.status !== 'cancelled' && (
-                            <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100/50 pt-3">
-                              {it.status === 'accepted' && <button onClick={() => handleStatusUpdate(it._id, 'en_route')} className="text-xs bg-brand text-white font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-brand-light transition-colors">Start Journey</button>}
-                              {it.status === 'en_route' && <button onClick={() => handleStatusUpdate(it._id, 'working')} className="text-xs bg-accent text-brand font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-accent-light transition-colors">Arrived & Start Work</button>}
-                              {it.status === 'working' && <button onClick={() => handleStatusUpdate(it._id, 'completed')} className="text-xs bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-emerald-600 transition-colors">Mark Completed</button>}
+                            <div className="mt-4 flex flex-col gap-2 border-t border-slate-100/50 pt-3">
+                              <div className="flex flex-wrap gap-2">
+                                {it.status === 'accepted' && <button onClick={() => handleStatusUpdate(it._id, 'en_route')} className="flex-1 text-xs bg-brand text-white font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-brand-light transition-colors">Start Journey</button>}
+                                {it.status === 'en_route' && <button onClick={() => handleStatusUpdate(it._id, 'working')} className="flex-1 text-xs bg-accent text-brand font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-accent-light transition-colors">Arrived & Start Work</button>}
+                                {it.status === 'working' && <button onClick={() => handleStatusUpdate(it._id, 'completed')} className="flex-1 text-xs bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-emerald-600 transition-colors">Mark Completed</button>}
+                              </div>
+                              <div className="flex gap-2">
+                                <a 
+                                  href={it.userId?.phone ? `tel:${it.userId.phone}` : '#'} 
+                                  onClick={(e) => { if(!it.userId?.phone) { e.preventDefault(); toast.error('Phone number not available'); } }}
+                                  className="flex-1 text-center bg-slate-100 text-slate-600 font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors text-xs flex items-center justify-center gap-1.5"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">call</span> Call
+                                </a>
+                                <a 
+                                  href={it.userId?.phone ? `https://wa.me/91${it.userId.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${it.userId?.name || 'Customer'}, I am your Seva Sarthi professional for ${it.serviceName}.`)}` : '#'} 
+                                  target="_blank" rel="noopener noreferrer"
+                                  onClick={(e) => { if(!it.userId?.phone) { e.preventDefault(); toast.error('WhatsApp not available'); } }}
+                                  className="flex-1 text-center bg-[#25D366] text-white font-bold px-4 py-2 rounded-xl hover:bg-[#128C7E] transition-colors text-xs flex items-center justify-center gap-1.5"
+                                >
+                                  <i className="fi fi-brands-whatsapp text-[14px]"></i> WhatsApp
+                                </a>
+                              </div>
                             </div>
                           )}
                         </div>

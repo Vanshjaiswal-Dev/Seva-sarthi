@@ -217,6 +217,7 @@ export default function UserDashboard() {
                 const uiStatus = mapStatusToUI(b.status);
                 const title = b.serviceName || 'Service Booking';
                 const providerName = b.providerId?.userId?.name || b.providerId?.title || 'Assigned Provider';
+                const providerPhone = b.providerId?.userId?.phone || b.providerId?.phone || '';
                 const image = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&q=80&w=200';
                 
                 return (
@@ -320,12 +321,21 @@ export default function UserDashboard() {
                     )}
                     
                     <div className="flex gap-3 w-full md:w-auto">
-                      <button onClick={() => toast.success(`Calling ${providerName}...`)} className="flex-1 md:flex-none btn-secondary !py-2.5 !text-sm">
+                      <a 
+                        href={providerPhone ? `tel:${providerPhone}` : '#'} 
+                        onClick={(e) => { if(!providerPhone) { e.preventDefault(); toast.error('Phone number not available'); } }}
+                        className="flex-1 md:flex-none btn-secondary !py-2.5 !text-sm flex items-center justify-center gap-1.5"
+                      >
                         <span className="material-symbols-outlined text-[18px]">call</span> Call
-                      </button>
-                      <button onClick={() => toast('Messenger coming soon!', { icon: '💬' })} className="flex-1 md:flex-none btn-primary !py-2.5 !text-sm !bg-brand">
-                        <span className="material-symbols-outlined text-[18px]">chat</span> Message
-                      </button>
+                      </a>
+                      <a 
+                        href={providerPhone ? `https://wa.me/91${providerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${providerName}, this is regarding my Seva Sarthi booking for ${title}.`)}` : '#'} 
+                        target="_blank" rel="noopener noreferrer"
+                        onClick={(e) => { if(!providerPhone) { e.preventDefault(); toast.error('WhatsApp not available'); } }}
+                        className="flex-1 md:flex-none btn-primary !py-2.5 !text-sm !bg-[#25D366] hover:!bg-[#128C7E] flex items-center justify-center gap-1.5 text-white"
+                      >
+                        <i className="fi fi-brands-whatsapp text-[16px]"></i> WhatsApp
+                      </a>
                     </div>
                   </div>
                 </motion.div>
