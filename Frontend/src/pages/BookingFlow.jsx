@@ -1,0 +1,504 @@
+/* eslint-disable no-unused-vars */
+import React, { useMemo, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
+import { DayPicker } from 'react-day-picker';
+import { addDays, format, isSameDay, isWeekend, startOfToday } from 'date-fns';
+import 'react-day-picker/dist/style.css';
+import { useProviderStore } from '../store/useProviderStore';
+import { useBookingStore } from '../store/useBookingStore';
+
+export default function BookingFlow() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [step, setStep] = useState(1);
+  const [selectedDate, setSelectedDate] = useState(undefined);
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [address, setAddress] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  const { getProviderById } = useProviderStore();
+  const { createBooking } = useBookingStore();
+
+  const providerId = location.state?.providerId || null;
+  const serviceId = location.state?.serviceId;
+  const serviceName = location.state?.serviceName;
+  const stateBasePrice = location.state?.basePrice;
+
+  const [provider, setProvider] = useState(null);
+  const [isLoadingProvider, setIsLoadingProvider] = useState(true);
+
+  React.useEffect(() => {
+    const fetchPro = async () => {
+      try {
+        if (providerId) {
+          const pro = await getProviderById(providerId);
+          setProvider(pro);
+        }
+      } catch (err) {
+        console.error('Failed to load provider', err);
+      } finally {
+        setIsLoadingProvider(false);
+      }
+    };
+    fetchPro();
+  }, [providerId, getProviderById]);
+
+  const today = startOfToday();
+
+  const disabledDays = useMemo(() => [{ before: today }, (date) => isWeekend(date)], [today]);
+
+  const timeSlots = useMemo(() => {
+    if (!selectedDate) return null;
+    const isTomorrow = isSameDay(selectedDate, addDays(today, 1));
+    const slots = { morning: ['09:00 AM', '10:30 AM', '11:45 AM'], afternoon: ['01:30 PM', '03:00 PM', '04:30 PM'], evening: ['06:00 PM', '07:15 PM'] };
+    if (isTomorrow) return { morning: ['10:30 AM', '11:45 AM'], afternoon: slots.afternoon, evening: ['07:15 PM'] };
+    return slots;
+  }, [selectedDate, today]);
+
+  const handleNext = () => { if (step < 3) { setStep(step + 1); } };
+  const handleBack = () => { if (step > 1) setStep(step - 1); };
+
+  const handlePhotoUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (photos.length + files.length > 3) {
+      toast.error('You can only upload up to 3 photos.');
+      return;
+    }
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotos(prev => [...prev, reader.result]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (index) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  const handleBooking = async () => {
+    if (!selectedDate || !selectedTime || !address.trim() || !providerId || providerId === 1) {
+      toast.error('Missing details or invalid provider.');
+      return;
+    }
+    if (address.trim().length < 5) {
+      toast.error('Address must be at least 5 characters.');
+      return;
+    }
+
+    toast.loading('Processing your booking...', { id: 'BOOKING' });
+    try {
+      await createBooking({
+        providerId,
+        serviceId,
+        serviceName,
+        scheduledDate: selectedDate.toISOString(),
+        scheduledTime: selectedTime,
+        address,
+        instructions,
+        photos,
+        paymentMethod: 'online',
+        couponCode,
+        baseRate,
+        platformFee,
+        discount: discountAmount,
+        tax: taxes,
+        totalAmount: total,
+      });
+
+      setStep(4);
+      toast.success('Booking confirmed successfully!', { id: 'BOOKING' }); 
+      setTimeout(() => navigate('/user/dashboard'), 2500); 
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to create booking', { id: 'BOOKING' });
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setIsApplyingCoupon(true);
+    
+    // Simulate API check
+    await new Promise(r => setTimeout(r, 600));
+    
+    if (couponCode.toUpperCase() === 'WELCOME50') {
+      setAppliedCoupon({ code: 'WELCOME50', discount: 50, type: 'flat' });
+      toast.success('Coupon applied! ₹50 off.');
+    } else if (couponCode.toUpperCase() === 'SAVE10') {
+      setAppliedCoupon({ code: 'SAVE10', discount: 10, type: 'percent' });
+      toast.success('Coupon applied! 10% off.');
+    } else {
+      toast.error('Invalid or expired coupon code.');
+      setAppliedCoupon(null);
+    }
+    setIsApplyingCoupon(false);
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    toast('Coupon removed', { icon: '🗑️' });
+  };
+
+  // Cost Breakdown Logic
+  const baseRate = stateBasePrice || provider?.pricePerHour || 0;
+  const platformFee = 50.00;
+  const taxRate = 0.05; // 5% GST
+  
+  let discountAmount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.type === 'flat') discountAmount = appliedCoupon.discount;
+    else if (appliedCoupon.type === 'percent') discountAmount = baseRate * (appliedCoupon.discount / 100);
+  }
+
+  const subtotal = baseRate + platformFee - discountAmount;
+  const taxes = subtotal * taxRate;
+  const total = subtotal + taxes;
+
+  const selectedDateLabel = selectedDate ? format(selectedDate, 'EEE, dd MMM yyyy') : '';
+
+  const stepAnim = { 
+    initial: { opacity: 0, y: 15 }, 
+    animate: { opacity: 1, y: 0 }, 
+    exit: { opacity: 0, y: -15 }, 
+    transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } 
+  };
+
+  const proName = provider?.user?.name || "Professional";
+  const proAvatar = provider?.user?.avatar || `https://ui-avatars.com/api/?name=${proName}&background=0D8B8B&color=fff`;
+
+  return (
+    <div className="min-h-[calc(100vh-5rem)] bg-surface-muted pt-8 pb-20 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-accent/5 rounded-full blur-[80px] -z-10 translate-x-1/2 -translate-y-1/2" />
+      
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+        {/* Progress Tracker */}
+        <div className="flex items-center justify-center mb-12 max-w-lg mx-auto">
+          {[1, 2, 3].map((num) => (
+            <React.Fragment key={num}>
+              <div className={`flex flex-col items-center flex-1 transition-opacity duration-300 ${step >= num ? 'opacity-100' : 'opacity-50'}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm mb-2.5 transition-all duration-300 shadow-sm ${step === num ? 'bg-brand text-surface scale-110 shadow-premium' : step > num ? 'bg-accent text-brand' : 'bg-surface border border-slate-200 text-slate-400'}`}>
+                  {step > num ? <span className="material-symbols-outlined text-base font-bold">check</span> : num}
+                </div>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${step >= num ? 'text-brand' : 'text-slate-400'}`}>{num === 1 ? 'Schedule' : num === 2 ? 'Details' : 'Checkout'}</span>
+              </div>
+              {num < 3 && (
+                <div className="h-1 flex-1 mx-2 -mt-7 bg-surface border border-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full bg-accent transition-all duration-500 ${step > num ? 'w-full' : 'w-0'}`} />
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className={`${step === 3 ? 'lg:col-span-8' : 'lg:col-span-12 max-w-4xl mx-auto w-full'} min-h-[500px]`}>
+            <AnimatePresence mode="wait">
+              {step === 1 && (
+                <motion.div key="s1" {...stepAnim} className="space-y-6">
+                  <div>
+                    <h1 className="section-heading !text-3xl">Select your time</h1>
+                    <p className="section-subheading !mt-1 !text-base">Choose a date and time slot that works for you.</p>
+                  </div>
+                  <div className="card p-6 md:p-8">
+                    <div className="flex flex-col md:flex-row gap-8">
+                      <div className="md:flex-1">
+                        <h3 className="font-bold text-lg text-brand mb-5">Pick a date</h3>
+                        <div className="rounded-2xl border border-slate-200/60 bg-surface shadow-sm p-4 flex justify-center">
+                          <DayPicker mode="single" selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setSelectedTime(null); }} fromMonth={today} disabled={disabledDays} showOutsideDays className="font-medium custom-daypicker" />
+                        </div>
+                        {selectedDate && (
+                          <motion.div initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} className="mt-5 flex items-center gap-2 text-sm font-bold text-accent-dark bg-accent/10 border border-accent/20 px-4 py-3 rounded-xl">
+                            <span className="material-symbols-outlined text-base">event</span>{selectedDateLabel}
+                          </motion.div>
+                        )}
+                      </div>
+                      <div className="md:flex-1">
+                        <h3 className="font-bold text-lg text-brand mb-5">Pick a slot</h3>
+                        {!selectedDate ? (
+                          <div className="h-[300px] flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-200 bg-surface/50 text-center">
+                            <span className="material-symbols-outlined text-slate-300 text-5xl mb-3">schedule</span>
+                            <p className="text-slate-500 font-semibold text-sm">Select a date first to see available slots</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-6">
+                            {Object.entries(timeSlots || {}).map(([period, slots]) => (
+                              <div key={period}>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <span className="material-symbols-outlined text-brand text-xl">{period === 'morning' ? 'light_mode' : period === 'afternoon' ? 'sunny' : 'dark_mode'}</span>
+                                  <h4 className="font-bold text-[11px] tracking-widest uppercase text-slate-400">{period}</h4>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  {slots.map(time => (
+                                    <button key={time} onClick={() => setSelectedTime(time)}
+                                      className={`py-3 px-3 rounded-xl font-bold text-sm transition-all border-2 ${selectedTime === time ? 'bg-brand border-brand text-surface shadow-sm' : 'bg-surface border-slate-200 text-slate-500 hover:border-brand/40 hover:text-brand'}`}>
+                                      {time}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-4">
+                    <button onClick={handleNext} disabled={!selectedDate || !selectedTime} className="btn-primary !px-8 disabled:opacity-50 disabled:cursor-not-allowed">
+                      Continue <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 2 && (
+                <motion.div key="s2" {...stepAnim} className="space-y-6">
+                  <div>
+                    <h1 className="section-heading !text-3xl">Service Details</h1>
+                    <p className="section-subheading !mt-1 !text-base">Where do you need the service?</p>
+                  </div>
+                  <div className="card p-6 md:p-8 space-y-6">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Service Address</label>
+                      <textarea value={address} onChange={(e) => setAddress(e.target.value)} className="input-field min-h-[120px] resize-none" placeholder="e.g. 123 Prime Enclave, Block B, New Delhi" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Special Instructions (Optional)</label>
+                      <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} className="input-field min-h-[100px] resize-none" placeholder="e.g. Ring the doorbell, beware of dog." />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Photos of Damaged Part (Max 3, Optional)</label>
+                      <div className="flex flex-wrap gap-4">
+                        {photos.map((photo, idx) => (
+                          <div key={idx} className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                            <img src={photo} alt={`Upload ${idx+1}`} className="w-full h-full object-cover" />
+                            <button onClick={() => removePhoto(idx)} className="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm shadow-sm hover:bg-red-600 transition-colors">✕</button>
+                          </div>
+                        ))}
+                        {photos.length < 3 && (
+                          <label className="w-24 h-24 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-brand hover:bg-slate-50 transition-colors text-slate-400 hover:text-brand">
+                            <span className="material-symbols-outlined text-2xl mb-1">add_photo_alternate</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest mt-1">Upload</span>
+                            <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center pt-4">
+                    <button onClick={handleBack} className="text-slate-500 font-bold px-4 py-3 hover:text-brand transition-colors flex items-center gap-1"><span className="material-symbols-outlined text-lg">arrow_back</span> Back</button>
+                    <button onClick={handleNext} disabled={!address.trim()} className="btn-primary !px-8 disabled:opacity-50 disabled:cursor-not-allowed">
+                      Review <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 3 && (
+                <motion.div key="s3" {...stepAnim} className="space-y-6">
+                  <div>
+                    <h1 className="section-heading !text-3xl">Checkout</h1>
+                    <p className="section-subheading !mt-1 !text-base">Review your details and confirm booking.</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Summary Cards */}
+                    <div className="flex items-start gap-4 p-5 bg-surface border border-slate-200/80 rounded-2xl shadow-sm">
+                      <div className="w-12 h-12 bg-accent/10 text-accent-dark rounded-xl flex items-center justify-center flex-shrink-0"><span className="material-symbols-outlined text-[24px]">event_available</span></div>
+                      <div>
+                        <h4 className="font-bold text-brand mb-1">Schedule</h4>
+                        <p className="text-slate-500 text-sm font-medium">{selectedDateLabel}<br/>at {selectedTime}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-4 p-5 bg-surface border border-slate-200/80 rounded-2xl shadow-sm">
+                      <div className="w-12 h-12 bg-brand/5 text-brand rounded-xl flex items-center justify-center flex-shrink-0"><span className="material-symbols-outlined text-[24px]">location_on</span></div>
+                      <div>
+                        <h4 className="font-bold text-brand mb-1">Location</h4>
+                        <p className="text-slate-500 text-sm font-medium line-clamp-2">{address}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Method */}
+                  <div className="card p-6 md:p-8">
+                    <h4 className="font-bold text-brand mb-4 text-lg">Payment Method</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <label className="flex items-center gap-3 p-4 border-2 border-accent bg-accent/5 rounded-xl cursor-pointer relative overflow-hidden transition-all shadow-sm">
+                        <input type="radio" name="payment" defaultChecked className="accent-accent-dark w-4 h-4 z-10" />
+                        <span className="font-bold text-brand text-sm flex items-center gap-2 z-10"><span className="material-symbols-outlined text-accent-dark text-xl">credit_card</span>Online Payment</span>
+                      </label>
+                      <label className="flex items-center gap-3 p-4 border-2 border-slate-200 hover:border-slate-300 bg-surface rounded-xl cursor-pointer transition-all">
+                        <input type="radio" name="payment" className="accent-brand w-4 h-4" />
+                        <span className="font-bold text-slate-500 text-sm flex items-center gap-2"><span className="material-symbols-outlined text-slate-400 text-xl">payments</span>Pay After Service</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-4">
+                    <button onClick={handleBack} className="text-slate-500 font-bold px-4 py-3 hover:text-brand transition-colors flex items-center gap-1"><span className="material-symbols-outlined text-lg">arrow_back</span> Back</button>
+                    <button onClick={handleBooking} className="btn-accent !px-8 !py-4 shadow-premium">
+                      Confirm Booking <span className="material-symbols-outlined text-[22px]">verified</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 4 && (
+                <motion.div key="s4" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', bounce: 0.5, duration: 0.6 }}
+                  className="card flex flex-col items-center justify-center text-center p-16 min-h-[500px]">
+                  <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    <span className="material-symbols-outlined text-6xl text-emerald-500">task_alt</span>
+                  </div>
+                  <h1 className="text-4xl font-extrabold font-headline text-brand mb-4">Booking Confirmed!</h1>
+                  <p className="text-slate-500 font-medium text-lg">Your service request has been sent to the professional.</p>
+                  <p className="text-slate-400 mt-6 text-sm flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                    Redirecting to your dashboard...
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Business Model & Cost Sidebar */}
+          {step === 3 && (
+            <aside className="lg:col-span-4 lg:sticky lg:top-28">
+              <div className="card p-6 border-slate-200/60 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-brand"></div>
+              
+              {/* Provider Info */}
+              <div className="flex items-center gap-4 border-b border-slate-100 pb-6 mb-6 mt-2">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm">
+                  <img alt="Provider" className="w-full h-full object-cover" src={proAvatar} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-brand text-lg">{proName}</h3>
+                  <p className="text-sm text-slate-500 font-semibold">{serviceName || provider?.title || "Service Professional"}</p>
+                  <div className="flex items-center gap-1.5 mt-1 text-xs font-bold text-slate-600 bg-slate-50 inline-flex px-2 py-1 rounded-md border border-slate-100">
+                    <span className="material-symbols-outlined text-accent text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span> {provider?.rating || 0} ({provider?.jobsCompleted || 0} jobs)
+                  </div>
+                </div>
+              </div>
+              
+              {/* Coupons Section */}
+              {step < 4 && (
+                <div className="mb-6 pb-6 border-b border-slate-100">
+                  <h4 className="font-bold text-brand mb-3 text-sm uppercase tracking-wider">Offers & Coupons</h4>
+                  {!appliedCoupon ? (
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Enter coupon code" 
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        className="flex-1 px-3 py-2.5 bg-surface border-2 border-slate-200 rounded-xl text-brand font-bold text-sm focus:border-accent focus:outline-none placeholder-slate-400"
+                      />
+                      <button 
+                        onClick={handleApplyCoupon}
+                        disabled={!couponCode || isApplyingCoupon}
+                        className="bg-brand text-surface px-4 py-2.5 rounded-xl font-bold text-sm disabled:opacity-50 hover:bg-brand-light transition-colors"
+                      >
+                        {isApplyingCoupon ? '...' : 'Apply'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-emerald-600 text-[20px]">local_offer</span>
+                        <div>
+                          <p className="text-sm font-bold text-emerald-800">{appliedCoupon.code}</p>
+                          <p className="text-[11px] font-semibold text-emerald-600">Coupon applied successfully</p>
+                        </div>
+                      </div>
+                      <button onClick={removeCoupon} className="text-emerald-700 hover:text-red-500 transition-colors">
+                        <span className="material-symbols-outlined text-lg">close</span>
+                      </button>
+                    </div>
+                  )}
+                  {/* Suggestion */}
+                  {!appliedCoupon && <p className="text-[11px] text-slate-400 font-semibold mt-2">Try <span className="text-accent-dark cursor-pointer" onClick={()=>{setCouponCode('WELCOME50');}}>WELCOME50</span></p>}
+                </div>
+              )}
+
+              {/* Cost Breakdown */}
+              <div className="space-y-3 text-sm font-medium">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 flex items-center gap-1.5"><span className="material-symbols-outlined text-[16px]">info</span> Base Rate (1 hr)</span>
+                  <span className="font-bold text-brand">₹{baseRate.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Platform Fee</span>
+                  <span className="font-bold text-brand">₹{platformFee.toFixed(2)}</span>
+                </div>
+                
+                {appliedCoupon && (
+                  <motion.div initial={{opacity:0, x:-10}} animate={{opacity:1, x:0}} className="flex justify-between items-center text-emerald-600">
+                    <span>Discount ({appliedCoupon.code})</span>
+                    <span className="font-bold">-₹{discountAmount.toFixed(2)}</span>
+                  </motion.div>
+                )}
+
+                <div className="flex justify-between items-center text-slate-400 border-t border-slate-100 pt-3">
+                  <span>Taxes & GST (5%)</span>
+                  <span className="font-bold text-brand">₹{taxes.toFixed(2)}</span>
+                </div>
+                
+                <div className="pt-4 border-t-2 border-slate-100 mt-2">
+                  <div className="flex justify-between items-end">
+                    <span className="font-bold text-brand uppercase tracking-wider text-sm">Total</span>
+                    <span className="text-3xl font-extrabold text-brand tracking-tight">₹{total.toFixed(2)}</span>
+                  </div>
+                  <p className="text-right text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1.5">Final amount to pay</p>
+                </div>
+              </div>
+
+              {/* Trust Badge */}
+              <div className="mt-6 bg-surface-muted border border-slate-200/60 p-4 rounded-xl flex gap-3 items-center">
+                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-100">
+                  <span className="material-symbols-outlined text-brand text-xl" style={{fontVariationSettings:"'FILL' 1"}}>shield</span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                  Every booking is protected by the <strong className="text-brand">Seva Guarantee</strong>. Safe and reliable.
+                </p>
+              </div>
+              </div>
+            </aside>
+          )}
+        </div>
+      </main>
+      
+      {/* Custom styles for DayPicker to match premium theme */}
+      <style>{`
+        .custom-daypicker {
+          --rdp-cell-size: 40px;
+          --rdp-accent-color: #0F172A; /* brand */
+          --rdp-background-color: #F8FAFC;
+          --rdp-accent-color-dark: #1E293B;
+          --rdp-background-color-dark: #020617;
+          --rdp-outline: 2px solid var(--rdp-accent-color);
+          --rdp-outline-selected: 2px solid var(--rdp-accent-color);
+        }
+        .rdp-day_selected, .rdp-day_selected:focus-visible, .rdp-day_selected:hover {
+          color: white;
+          background-color: var(--rdp-accent-color);
+          font-weight: bold;
+          border-radius: 8px;
+        }
+        .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+          background-color: #F1F5F9;
+          border-radius: 8px;
+        }
+        .rdp-day_today {
+          font-weight: bold;
+          color: #F5A623;
+        }
+      `}</style>
+    </div>
+  );
+}
