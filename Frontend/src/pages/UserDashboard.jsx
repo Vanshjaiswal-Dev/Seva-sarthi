@@ -14,17 +14,19 @@ const RENTALS_STORAGE_KEY = 'sevaSarthi.rentals.v1';
 const mapStatusToUI = (status) => {
   const normalizedStatus = status?.toLowerCase() || '';
   switch(normalizedStatus) {
+    case 'pending': return { id: 'pending', text: 'Waiting for Acceptance' };
     case 'accepted': return { id: 'accepted', text: 'Assigned to Provider' };
     case 'en_route': return { id: 'en_route', text: 'Provider En-Route' };
     case 'working': return { id: 'working', text: 'Working on-site' };
     case 'completed': return { id: 'completed', text: 'Job Completed' };
-    default: return { id: 'accepted', text: 'Pending Confirmation' };
+    default: return { id: 'pending', text: 'Waiting for Acceptance' };
   }
 };
 
 
 // Tracking steps
 const trackingSteps = [
+  { id: 'pending', label: 'Requested', icon: 'schedule' },
   { id: 'accepted', label: 'Accepted', icon: 'check_circle' },
   { id: 'en_route', label: 'On the way', icon: 'directions_car' },
   { id: 'working', label: 'Working', icon: 'build' },

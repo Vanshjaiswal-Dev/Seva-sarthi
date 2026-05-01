@@ -51,14 +51,37 @@ export default function BookingFlow() {
 
   const today = startOfToday();
 
-  const disabledDays = useMemo(() => [{ before: today }, (date) => isWeekend(date)], [today]);
+  const disabledDays = useMemo(() => [{ before: today }], [today]);
 
   const timeSlots = useMemo(() => {
     if (!selectedDate) return null;
+    const isToday = isSameDay(selectedDate, today);
     const isTomorrow = isSameDay(selectedDate, addDays(today, 1));
-    const slots = { morning: ['09:00 AM', '10:30 AM', '11:45 AM'], afternoon: ['01:30 PM', '03:00 PM', '04:30 PM'], evening: ['06:00 PM', '07:15 PM'] };
-    if (isTomorrow) return { morning: ['10:30 AM', '11:45 AM'], afternoon: slots.afternoon, evening: ['07:15 PM'] };
-    return slots;
+    const currentHour = new Date().getHours();
+    const currentMinutes = new Date().getMinutes();
+
+    const allSlots = { 
+      morning: ['09:00 AM', '10:30 AM', '11:45 AM'], 
+      afternoon: ['01:30 PM', '03:00 PM', '04:30 PM'], 
+      evening: ['06:00 PM', '07:15 PM'] 
+    };
+
+    if (isToday) {
+      const filterPastTimes = (slotsArray) => slotsArray.filter(time => {
+        const [timeStr, modifier] = time.split(' ');
+        let [hours, minutes] = timeStr.split(':').map(Number);
+        if (hours === 12) hours = 0;
+        if (modifier === 'PM') hours += 12;
+        // Add a 1 hour buffer for same day booking
+        return (hours * 60 + minutes) > (currentHour * 60 + currentMinutes + 60);
+      });
+      return {
+        morning: filterPastTimes(allSlots.morning),
+        afternoon: filterPastTimes(allSlots.afternoon),
+        evening: filterPastTimes(allSlots.evening)
+      };
+    }
+    return allSlots;
   }, [selectedDate, today]);
 
   const handleNext = () => { if (step < 3) { setStep(step + 1); } };
@@ -229,22 +252,33 @@ export default function BookingFlow() {
                           </div>
                         ) : (
                           <div className="space-y-6">
-                            {Object.entries(timeSlots || {}).map(([period, slots]) => (
-                              <div key={period}>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <span className="material-symbols-outlined text-brand text-xl">{period === 'morning' ? 'light_mode' : period === 'afternoon' ? 'sunny' : 'dark_mode'}</span>
-                                  <h4 className="font-bold text-[11px] tracking-widest uppercase text-slate-400">{period}</h4>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                  {slots.map(time => (
-                                    <button key={time} onClick={() => setSelectedTime(time)}
-                                      className={`py-3 px-3 rounded-xl font-bold text-sm transition-all border-2 ${selectedTime === time ? 'bg-brand border-brand text-surface shadow-sm' : 'bg-surface border-slate-200 text-slate-500 hover:border-brand/40 hover:text-brand'}`}>
-                                      {time}
-                                    </button>
-                                  ))}
-                                </div>
+                            {(!timeSlots?.morning?.length && !timeSlots?.afternoon?.length && !timeSlots?.evening?.length) ? (
+                              <div className="h-[200px] flex flex-col items-center justify-center p-6 rounded-2xl border border-rose-100 bg-rose-50 text-center">
+                                <span className="material-symbols-outlined text-rose-300 text-4xl mb-2">event_busy</span>
+                                <p className="text-rose-600 font-bold text-sm">No slots left for today.</p>
+                                <p className="text-rose-500 font-medium text-xs mt-1">Please select tomorrow or another date.</p>
                               </div>
-                            ))}
+                            ) : (
+                              Object.entries(timeSlots || {}).map(([period, slots]) => {
+                                if (slots.length === 0) return null;
+                                return (
+                                  <div key={period}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <span className="material-symbols-outlined text-brand text-xl">{period === 'morning' ? 'light_mode' : period === 'afternoon' ? 'sunny' : 'dark_mode'}</span>
+                                      <h4 className="font-bold text-[11px] tracking-widest uppercase text-slate-400">{period}</h4>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      {slots.map(time => (
+                                        <button key={time} onClick={() => setSelectedTime(time)}
+                                          className={`py-3 px-3 rounded-xl font-bold text-sm transition-all border-2 ${selectedTime === time ? 'bg-brand border-brand text-surface shadow-sm' : 'bg-surface border-slate-200 text-slate-500 hover:border-brand/40 hover:text-brand'}`}>
+                                          {time}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
                           </div>
                         )}
                       </div>
@@ -325,6 +359,43 @@ export default function BookingFlow() {
                     </div>
                   </div>
 
+                  {/* Coupons Section (Moved to Main Column) */}
+                  <div className="card p-6 md:p-8">
+                    <h4 className="font-bold text-brand mb-4 text-lg">Offers & Coupons</h4>
+                    {!appliedCoupon ? (
+                      <div className="flex gap-2 max-w-md">
+                        <input 
+                          type="text" 
+                          placeholder="Enter coupon code" 
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          className="flex-1 px-4 py-3 bg-surface border-2 border-slate-200 rounded-xl text-brand font-bold focus:border-accent focus:outline-none placeholder-slate-400"
+                        />
+                        <button 
+                          onClick={handleApplyCoupon}
+                          disabled={!couponCode || isApplyingCoupon}
+                          className="bg-brand text-surface px-6 py-3 rounded-xl font-bold disabled:opacity-50 hover:bg-brand-light transition-colors"
+                        >
+                          {isApplyingCoupon ? '...' : 'Apply'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-100 rounded-xl max-w-md">
+                        <div className="flex items-center gap-3">
+                          <span className="material-symbols-outlined text-emerald-600 text-2xl">local_offer</span>
+                          <div>
+                            <p className="font-bold text-emerald-800">{appliedCoupon.code}</p>
+                            <p className="text-xs font-semibold text-emerald-600">Coupon applied successfully</p>
+                          </div>
+                        </div>
+                        <button onClick={removeCoupon} className="text-emerald-700 hover:text-red-500 transition-colors p-2 bg-emerald-100/50 rounded-full">
+                          <span className="material-symbols-outlined text-xl">close</span>
+                        </button>
+                      </div>
+                    )}
+                    {!appliedCoupon && <p className="text-xs text-slate-500 font-semibold mt-3">Try <span className="text-accent-dark font-bold cursor-pointer hover:underline" onClick={()=>{setCouponCode('WELCOME50');}}>WELCOME50</span> for a discount</p>}
+                  </div>
+
                   {/* Payment Method */}
                   <div className="card p-6 md:p-8">
                     <h4 className="font-bold text-brand mb-4 text-lg">Payment Method</h4>
@@ -385,48 +456,7 @@ export default function BookingFlow() {
                   </div>
                 </div>
               </div>
-              
-              {/* Coupons Section */}
-              {step < 4 && (
-                <div className="mb-6 pb-6 border-b border-slate-100">
-                  <h4 className="font-bold text-brand mb-3 text-sm uppercase tracking-wider">Offers & Coupons</h4>
-                  {!appliedCoupon ? (
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Enter coupon code" 
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                        className="flex-1 px-3 py-2.5 bg-surface border-2 border-slate-200 rounded-xl text-brand font-bold text-sm focus:border-accent focus:outline-none placeholder-slate-400"
-                      />
-                      <button 
-                        onClick={handleApplyCoupon}
-                        disabled={!couponCode || isApplyingCoupon}
-                        className="bg-brand text-surface px-4 py-2.5 rounded-xl font-bold text-sm disabled:opacity-50 hover:bg-brand-light transition-colors"
-                      >
-                        {isApplyingCoupon ? '...' : 'Apply'}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-emerald-600 text-[20px]">local_offer</span>
-                        <div>
-                          <p className="text-sm font-bold text-emerald-800">{appliedCoupon.code}</p>
-                          <p className="text-[11px] font-semibold text-emerald-600">Coupon applied successfully</p>
-                        </div>
-                      </div>
-                      <button onClick={removeCoupon} className="text-emerald-700 hover:text-red-500 transition-colors">
-                        <span className="material-symbols-outlined text-lg">close</span>
-                      </button>
-                    </div>
-                  )}
-                  {/* Suggestion */}
-                  {!appliedCoupon && <p className="text-[11px] text-slate-400 font-semibold mt-2">Try <span className="text-accent-dark cursor-pointer" onClick={()=>{setCouponCode('WELCOME50');}}>WELCOME50</span></p>}
-                </div>
-              )}
-
-              {/* Cost Breakdown */}
+              {/* Coupons removed from sidebar to prevent users from missing them */}              {/* Cost Breakdown */}
               <div className="space-y-3 text-sm font-medium">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 flex items-center gap-1.5"><span className="material-symbols-outlined text-[16px]">info</span> Base Rate (1 hr)</span>
