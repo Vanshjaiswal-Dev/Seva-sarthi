@@ -6,6 +6,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useNotificationStore } from '../store/useNotificationStore';
 import { useLocationStore } from '../store/useLocationStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import LocationModal from './LocationModal';
 
 export default function Layout({ children }) {
   const { currentUser, logout } = useAuthStore();
@@ -21,7 +22,7 @@ export default function Layout({ children }) {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [manualCity, setManualCity] = useState('');
   
-  const { city, setCity, detectLocation, isLocating } = useLocationStore();
+  const { city, fullAddress, setCity, detectLocation, isLocating } = useLocationStore();
   
   const notifRef = useRef(null);
 
@@ -46,9 +47,6 @@ export default function Layout({ children }) {
     const handleClickOutside = (event) => {
       if (notifRef.current && !notifRef.current.contains(event.target)) {
         setShowNotifications(false);
-      }
-      if (!event.target.closest('.location-picker')) {
-        setShowLocationPicker(false);
       }
       if (!event.target.closest('.language-picker')) {
         setShowLanguagePicker(false);
@@ -103,54 +101,14 @@ export default function Layout({ children }) {
               {/* Location Picker */}
               <div className="relative location-picker">
                 <button 
-                  onClick={() => { setShowLocationPicker(!showLocationPicker); setManualCity(city); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-brand transition-colors max-w-[150px]"
-                  title={city || 'Set Location'}
+                  onClick={() => setShowLocationPicker(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-brand transition-colors max-w-[200px]"
+                  title={fullAddress || city || 'Set Location'}
                 >
                   <span className="material-symbols-outlined text-lg">location_on</span>
-                  <span className="truncate">{city || 'Location'}</span>
+                  <span className="truncate">{fullAddress || city || 'Set Location'}</span>
+                  <span className="material-symbols-outlined text-sm ml-1 text-slate-400">expand_more</span>
                 </button>
-                
-                <AnimatePresence>
-                  {showLocationPicker && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute -right-2 sm:right-0 mt-3 w-[calc(100vw-2rem)] sm:w-72 glass-panel rounded-2xl p-4 origin-top-right z-50 bg-surface shadow-lg border border-slate-200"
-                    >
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">{t('nav_your_location')}</h4>
-                      
-                      <button 
-                        onClick={() => { detectLocation(); setShowLocationPicker(false); }} 
-                        className="w-full flex items-center justify-center gap-2 btn-secondary !py-2.5 !rounded-xl mb-4 text-sm"
-                        disabled={isLocating}
-                      >
-                        <span className="material-symbols-outlined text-[18px]">{isLocating ? 'sync' : 'my_location'}</span>
-                        {isLocating ? t('nav_detecting') : t('nav_auto_detect')}
-                      </button>
-
-                      <div className="relative flex items-center py-2">
-                        <div className="flex-grow border-t border-slate-200"></div>
-                        <span className="flex-shrink-0 mx-2 text-slate-400 text-xs font-semibold">{t('nav_or')}</span>
-                        <div className="flex-grow border-t border-slate-200"></div>
-                      </div>
-
-                      <form onSubmit={(e) => { e.preventDefault(); setCity(manualCity); setShowLocationPicker(false); }} className="mt-2">
-                        <input 
-                          type="text" 
-                          placeholder={t('nav_enter_city')} 
-                          value={manualCity}
-                          onChange={(e) => setManualCity(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 text-sm rounded-xl px-3 py-2 mb-2 focus:outline-none focus:border-brand"
-                        />
-                        <button type="submit" className="w-full btn-brand !py-2 !rounded-xl text-sm" disabled={!manualCity.trim()}>
-                          {t('nav_set_city')}
-                        </button>
-                      </form>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               {/* Language Switcher */}
@@ -371,6 +329,11 @@ export default function Layout({ children }) {
           </div>
         </footer>
       )}
+
+      {/* Global Modals */}
+      <AnimatePresence>
+        {showLocationPicker && <LocationModal onClose={() => setShowLocationPicker(false)} />}
+      </AnimatePresence>
     </div>
   );
 }
