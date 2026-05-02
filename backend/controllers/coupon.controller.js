@@ -58,7 +58,7 @@ const getEligibleCoupons = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   
   // Check if user is new (has no previous completed/active bookings)
-  const previousBookings = await Booking.countDocuments({ user: userId });
+  const previousBookings = await Booking.countDocuments({ userId: userId });
   const isNewUser = previousBookings === 0;
 
   const query = {
@@ -98,7 +98,7 @@ const validateCoupon = asyncHandler(async (req, res) => {
 
   // Check userType constraints
   if (coupon.userType === 'new') {
-    const previousBookings = await Booking.countDocuments({ user: req.user.id });
+    const previousBookings = await Booking.countDocuments({ userId: req.user._id });
     if (previousBookings > 0) {
       throw new ApiError(400, 'This coupon is only valid for first-time users.');
     }

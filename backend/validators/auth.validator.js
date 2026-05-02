@@ -50,60 +50,6 @@ const registerSchema = {
   }),
 };
 
-const providerRegisterSchema = {
-  body: Joi.object({
-    // Step 1: Basic Details
-    name: Joi.string().min(2).max(50).required().messages({
-      'string.min': 'Name must be at least 2 characters',
-      'any.required': 'Owner name is required',
-    }),
-    email: Joi.string().email().required().messages({
-      'string.email': 'Please enter a valid email',
-      'any.required': 'Email is required',
-    }),
-    password: Joi.string().min(6).max(128).required().messages({
-      'string.min': 'Password must be at least 6 characters',
-      'any.required': 'Password is required',
-    }),
-    phone: Joi.string().pattern(/^[6-9]\d{9}$/).required().messages({
-      'string.pattern.base': 'Enter a valid 10-digit mobile number',
-      'any.required': 'Mobile number is required',
-    }),
-
-    // Step 2: Business Details
-    businessType: Joi.string().valid('individual', 'shop', 'agency').required().messages({
-      'any.required': 'Business type is required',
-    }),
-    businessName: Joi.string().allow('').optional(),
-    experience: Joi.string().required().messages({
-      'any.required': 'Experience is required',
-    }),
-    city: Joi.string().required().messages({
-      'any.required': 'City is required',
-    }),
-    fullAddress: Joi.string().required().messages({
-      'any.required': 'Full address is required',
-    }),
-    pincode: Joi.string().pattern(/^\d{6}$/).required().messages({
-      'string.pattern.base': 'Enter a valid 6-digit pincode',
-      'any.required': 'Pincode is required',
-    }),
-
-    // Step 3: Documents
-    documents: Joi.object({
-      idProof: Joi.string().allow('').optional(),
-      idProofType: Joi.string().valid('aadhar', 'pan', '').allow('').optional(),
-      profilePhoto: Joi.string().allow('').optional(),
-      businessLicense: Joi.string().allow('').optional(),
-      gst: Joi.string().allow('').optional(),
-    }).optional(),
-
-    // Step 4: Primary Service
-    primaryCategory: Joi.string().required().messages({
-      'any.required': 'Please select a primary service category',
-    }),
-  }),
-};
 
 const loginSchema = {
   body: Joi.object({
@@ -160,7 +106,6 @@ const resetPasswordSchema = {
 
 module.exports = {
   registerSchema,
-  providerRegisterSchema,
   loginSchema,
   changePasswordSchema,
   forgotPasswordSchema,

@@ -1,4 +1,7 @@
+const mongoose = require('mongoose');
 const Service = require('../models/Service');
+const User = require('../models/User');
+const Provider = require('../models/Provider');
 const ApiResponse = require('../utils/ApiResponse');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
@@ -14,9 +17,6 @@ const getAllServices = asyncHandler(async (req, res) => {
   let services = await Service.find(query).sort({ category: 1, name: 1 }).populate('providerId', 'name avatar');
 
   if (city) {
-    const mongoose = require('mongoose');
-    const User = require('../models/User');
-    const Provider = require('../models/Provider');
 
     const usersInCity = await User.find({ 
       'address.city': { $regex: new RegExp(`^${city}$`, 'i') },

@@ -9,6 +9,8 @@ const Coupon = require('./models/Coupon');
 const Notification = require('./models/Notification');
 const Booking = require('./models/Booking');
 const Complaint = require('./models/Complaint');
+const Review = require('./models/Review');
+const Rental = require('./models/Rental');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -33,7 +35,9 @@ const resetDB = async () => {
       Coupon.deleteMany({}),
       Notification.deleteMany({}),
       Booking.deleteMany({}),
-      Complaint.deleteMany({})
+      Complaint.deleteMany({}),
+      Review.deleteMany({}),
+      Rental.deleteMany({}),
     ]);
 
     console.log('✅ Database reset successfully! All collections are now completely empty.');

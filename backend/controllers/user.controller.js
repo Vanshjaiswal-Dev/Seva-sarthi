@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Rental = require('../models/Rental');
@@ -88,7 +89,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     Booking.countDocuments({ userId, status: 'completed' }),
     Rental.countDocuments({ userId, status: { $nin: ['returned', 'cancelled'] } }),
     Booking.aggregate([
-      { $match: { userId, status: 'completed' } },
+      { $match: { userId: new mongoose.Types.ObjectId(userId), status: 'completed' } },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } },
     ]),
   ]);
