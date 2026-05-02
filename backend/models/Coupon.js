@@ -2,21 +2,53 @@ const mongoose = require('mongoose');
 
 const couponSchema = new mongoose.Schema(
   {
+    // Promotion / Banner specific fields
+    isBannerOnly: {
+      type: Boolean,
+      default: false, // If true, this is just a promotional banner, not a discount code
+    },
+    title: {
+      type: String,
+      required: function() { return this.showOnHome; },
+      trim: true,
+    },
+    subtitle: {
+      type: String,
+      trim: true,
+    },
+    imageUrl: {
+      type: String,
+    },
+    targetUrl: {
+      type: String, // Where the "Book now" button redirects
+    },
+    showOnHome: {
+      type: Boolean,
+      default: false,
+    },
+    userType: {
+      type: String,
+      enum: ['all', 'new'],
+      default: 'all',
+    },
+    
+    // Discount specific fields
     code: {
       type: String,
-      required: [true, 'Coupon code is required'],
-      unique: true,
+      required: function() { return !this.isBannerOnly; },
       uppercase: true,
       trim: true,
+      unique: true,
+      sparse: true, // Allow nulls for banner-only records
     },
     discountType: {
       type: String,
       enum: ['flat', 'percent'],
-      required: [true, 'Discount type is required'],
+      required: function() { return !this.isBannerOnly; },
     },
     discountValue: {
       type: Number,
-      required: [true, 'Discount value is required'],
+      required: function() { return !this.isBannerOnly; },
       min: [0, 'Discount cannot be negative'],
     },
     minOrderAmount: {

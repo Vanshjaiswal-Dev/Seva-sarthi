@@ -57,6 +57,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { city, detectLocation } = useLocationStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [homeOffers, setHomeOffers] = useState([]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -68,6 +69,20 @@ export default function LandingPage() {
         detectLocation();
       }, 2000);
     }
+    
+    // Fetch Offers
+    const fetchOffers = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/coupons/home');
+        const data = await res.json();
+        if (data.success) {
+          setHomeOffers(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch offers');
+      }
+    };
+    fetchOffers();
   }, [city, detectLocation]);
 
   const handleSearch = (query) => {
@@ -120,6 +135,62 @@ export default function LandingPage() {
           </motion.div>
         </div>
       </section>
+
+      {/* Offers & Discounts Carousel */}
+      {homeOffers.length > 0 && (
+        <section className="py-12 bg-slate-50 relative overflow-hidden">
+          <div className="section-container">
+            <h2 className="text-2xl font-extrabold font-headline text-brand tracking-tight mb-8">Offers & discounts</h2>
+            
+            <div className="flex overflow-x-auto gap-6 pb-6 pt-2 custom-scrollbar snap-x snap-mandatory">
+              {homeOffers.map((offer, idx) => (
+                <div 
+                  key={offer._id || idx} 
+                  className="min-w-[280px] md:min-w-[340px] max-w-[340px] h-[180px] rounded-2xl overflow-hidden relative shrink-0 snap-center shadow-sm cursor-pointer group hover:shadow-md transition-all border border-slate-200"
+                  onClick={() => offer.targetUrl ? navigate(offer.targetUrl) : null}
+                >
+                  <img 
+                    src={offer.imageUrl || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=2070'} 
+                    alt={offer.title} 
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
+                  
+                  <div className="absolute inset-0 p-6 flex flex-col justify-between items-start">
+                    <div>
+                      <h3 className="text-xl font-bold text-white leading-tight max-w-[200px] drop-shadow-md">
+                        {offer.title}
+                      </h3>
+                      {offer.subtitle && (
+                        <p className="text-white/80 text-sm mt-1 max-w-[180px] line-clamp-2">
+                          {offer.subtitle}
+                        </p>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {!offer.isBannerOnly && offer.code && (
+                          <span className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded border border-white/40 text-[10px] font-bold text-white uppercase tracking-wider">
+                            Code: {offer.code}
+                          </span>
+                        )}
+                        {offer.userType === 'new' && (
+                          <span className="bg-purple-500/80 backdrop-blur-sm px-2 py-0.5 rounded border border-purple-400/50 text-[10px] font-bold text-white uppercase tracking-wider">
+                            New Users Only
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <button className="bg-white text-brand px-5 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition-colors">
+                      Book now
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Services Grid */}
       <section className="py-24 relative">

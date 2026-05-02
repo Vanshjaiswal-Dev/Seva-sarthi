@@ -8,6 +8,7 @@ import { addDays, format, isSameDay, isWeekend, startOfToday } from 'date-fns';
 import 'react-day-picker/dist/style.css';
 import { useProviderStore } from '../store/useProviderStore';
 import { useBookingStore } from '../store/useBookingStore';
+import api from '../lib/axios';
 
 export default function BookingFlow() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function BookingFlow() {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [eligibleCoupons, setEligibleCoupons] = useState([]);
 
   const { getProviderById } = useProviderStore();
   const { createBooking } = useBookingStore();
@@ -48,6 +50,22 @@ export default function BookingFlow() {
     };
     fetchPro();
   }, [providerId, getProviderById]);
+
+  React.useEffect(() => {
+    if (step === 3) {
+      const fetchCoupons = async () => {
+        try {
+          const res = await api.get('/coupons/eligible');
+          if (res.success) {
+            setEligibleCoupons(res.data);
+          }
+        } catch (err) {
+          console.error('Failed to fetch eligible coupons');
+        }
+      };
+      fetchCoupons();
+    }
+  }, [step]);
 
   const today = startOfToday();
 
@@ -144,24 +162,30 @@ export default function BookingFlow() {
     }
   };
 
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
+  const handleApplyCoupon = async (codeToApply = couponCode) => {
+    if (!codeToApply.trim()) return;
     setIsApplyingCoupon(true);
     
-    // Simulate API check
-    await new Promise(r => setTimeout(r, 600));
-    
-    if (couponCode.toUpperCase() === 'WELCOME50') {
-      setAppliedCoupon({ code: 'WELCOME50', discount: 50, type: 'flat' });
-      toast.success('Coupon applied! ₹50 off.');
-    } else if (couponCode.toUpperCase() === 'SAVE10') {
-      setAppliedCoupon({ code: 'SAVE10', discount: 10, type: 'percent' });
-      toast.success('Coupon applied! 10% off.');
-    } else {
-      toast.error('Invalid or expired coupon code.');
+    try {
+      const res = await api.post('/coupons/validate', {
+        code: codeToApply,
+        orderAmount: baseRate + platformFee
+      });
+      if (res.success) {
+        setAppliedCoupon({
+          code: res.data.code,
+          discount: res.data.discount,
+          type: 'amount' // the backend already calculates the flat discount value
+        });
+        setCouponCode(res.data.code);
+        toast.success(`Coupon applied! ₹${res.data.discount} off.`);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Invalid or expired coupon code.');
       setAppliedCoupon(null);
+    } finally {
+      setIsApplyingCoupon(false);
     }
-    setIsApplyingCoupon(false);
   };
 
   const removeCoupon = () => {
@@ -393,7 +417,40 @@ export default function BookingFlow() {
                         </button>
                       </div>
                     )}
-                    {!appliedCoupon && <p className="text-xs text-slate-500 font-semibold mt-3">Try <span className="text-accent-dark font-bold cursor-pointer hover:underline" onClick={()=>{setCouponCode('WELCOME50');}}>WELCOME50</span> for a discount</p>}
+                    
+                    {/* Eligible Coupons List */}
+                    {!appliedCoupon && eligibleCoupons.length > 0 && (
+                      <div className="mt-6 space-y-3">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Available Offers for You</p>
+                        <div className="grid gap-3">
+                          {eligibleCoupons.map((coupon) => (
+                            <div key={coupon._id} onClick={() => handleApplyCoupon(coupon.code)} 
+                              className="group flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-slate-50 border border-slate-200/80 rounded-xl cursor-pointer hover:border-brand hover:shadow-sm transition-all">
+                              <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 bg-brand/5 text-brand rounded-xl flex items-center justify-center border border-brand/10 shrink-0 group-hover:bg-brand group-hover:text-white transition-colors">
+                                  <span className="material-symbols-outlined text-[20px]">sell</span>
+                                </div>
+                                <div>
+                                  <p className="font-bold text-brand">{coupon.title || 'Special Discount'}</p>
+                                  <p className="text-xs text-slate-500 mt-0.5">{coupon.subtitle || coupon.description || `Get ${coupon.discountType === 'flat' ? '₹' : ''}${coupon.discountValue}${coupon.discountType === 'percent' ? '%' : ''} off on this booking`}</p>
+                                  {coupon.minOrderAmount > 0 && (
+                                    <p className="text-[10px] font-semibold text-slate-400 mt-1">Min. order ₹{coupon.minOrderAmount}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="mt-3 md:mt-0 ml-12 md:ml-0 flex flex-row items-center gap-2">
+                                <span className="bg-slate-200/50 text-slate-600 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider border border-slate-300/50 border-dashed">
+                                  {coupon.code}
+                                </span>
+                                <button className="text-xs font-bold text-brand bg-white border border-slate-200 px-3 py-1.5 rounded-lg group-hover:bg-brand group-hover:text-white group-hover:border-brand transition-colors">
+                                  Apply
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Payment Method */}

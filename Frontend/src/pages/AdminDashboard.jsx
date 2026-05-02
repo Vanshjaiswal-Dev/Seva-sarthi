@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../lib/axios';
 import AdminComplaints from '../components/AdminComplaints';
+import AdminCoupons from '../components/AdminCoupons';
 
 export default function AdminDashboard() {
   const [verifications, setVerifications] = useState([]);
@@ -124,10 +125,10 @@ export default function AdminDashboard() {
             <p className="text-slate-300 font-medium mt-1">Platform analytics & management</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {['overview','users','verifications','services','complaints'].map(s => (
+            {['overview','users','verifications','services','complaints','offers'].map(s => (
               <button key={s} onClick={() => setActiveSection(s)}
                 className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${activeSection === s ? 'bg-surface text-brand shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10 border border-white/20'}`}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === 'offers' ? 'Offers & Coupons' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
@@ -457,6 +458,13 @@ export default function AdminDashboard() {
           <section className="bg-surface rounded-3xl p-8 shadow-card border border-slate-200/60 mb-8">
             <h4 className="text-xl font-extrabold font-headline text-brand mb-8">Complaint Management</h4>
             <AdminComplaints />
+          </section>
+        )}
+
+        {/* Offers Section */}
+        {activeSection === 'offers' && (
+          <section className="bg-surface rounded-3xl p-8 shadow-card border border-slate-200/60 mb-8">
+            <AdminCoupons />
           </section>
         )}
       </div>
