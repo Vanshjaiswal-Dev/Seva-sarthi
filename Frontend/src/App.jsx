@@ -17,6 +17,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import RaiseComplaint from "./pages/RaiseComplaint";
 import MyComplaints from "./pages/MyComplaints";
 import NotFound from "./pages/NotFound";
+import SevaAI from "./components/SevaAI";
 
 import { Toaster } from 'react-hot-toast';
 import SessionManager from "./components/SessionManager"; // New component for session timeouts
@@ -143,6 +144,7 @@ function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
+        <SevaAI />
       </Router>
   );
 }

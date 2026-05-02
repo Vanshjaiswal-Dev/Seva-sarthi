@@ -116,7 +116,22 @@ const hi = {
   sd_no_services: "कोई सेवा नहीं मिली",
   sd_no_services_hint: "कुछ फ़िल्टर हटाने या बजट बढ़ाने का प्रयास करें।",
   sd_clear_filters: "सभी फ़िल्टर हटाएं",
-  sd_by: "द्वारा",
+  sd_services_available: "सेवाएं उपलब्ध हैं",
+  sd_sort_highest_price: "कीमत: उच्च से निम्न",
+  sd_search: "खोजें",
+  sd_active_filters: "सक्रिय फिल्टर",
+  sd_rating: "रेटिंग",
+  sd_sort_by: "इसके अनुसार क्रमबद्ध करें",
+
+  // ─── Tool Rental ──────────────────────────────────────────
+  tr_search_placeholder: "उपकरण खोजें...",
+  tr_equipment_types: "उपकरण के प्रकार",
+  tr_max_budget: "अधिकतम बजट",
+  tr_condition: "स्थिति",
+  tr_in_stock: "स्टॉक में",
+  tr_relevance: "प्रासंगिकता",
+  tr_price_low_high: "कीमत: कम से उच्च",
+  tr_price_high_low: "कीमत: उच्च से कम",
 
   // ─── Authentication ───────────────────────────────────────
   auth_create_account: "खाता बनाएं",

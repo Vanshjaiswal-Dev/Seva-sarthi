@@ -24,6 +24,8 @@ const notificationRoutes = require('./routes/notification.routes');
 const couponRoutes = require('./routes/coupon.routes');
 const adminRoutes = require('./routes/admin.routes');
 const complaintRoutes = require('./routes/complaint.routes');
+const aiRoutes = require('./routes/ai.routes');
+const { initGemini } = require('./services/ai.service');
 
 const app = express();
 const server = http.createServer(app);
@@ -64,6 +66,7 @@ app.get('/', (req, res) => {
       coupons: '/api/coupons',
       admin: '/api/admin',
       complaints: '/api/complaints',
+      ai: '/api/ai',
     },
   });
 });
@@ -80,6 +83,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/complaints', complaintRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -97,6 +101,9 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
+  // Initialize Gemini AI after DB connection
+  initGemini();
+
   server.listen(PORT, () => {
     console.log(`\n🚀 Server running on port ${PORT}`);
     console.log(`📡 API:       http://localhost:${PORT}`);

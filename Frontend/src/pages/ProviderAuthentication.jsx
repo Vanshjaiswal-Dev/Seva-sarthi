@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars, react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -256,6 +256,7 @@ export default function ProviderAuthentication() {
                   <div>
                     <div className="flex justify-between items-end mb-1.5 ml-1">
                       <label className="block text-sm font-bold text-slate-700">Password</label>
+                      <Link to="/auth?mode=forgot" className="text-xs font-bold text-brand hover:text-accent transition-colors">Forgot Password?</Link>
                     </div>
                     <input type="password" required className="input-field" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} placeholder="••••••••" />
                   </div>

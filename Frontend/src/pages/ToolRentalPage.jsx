@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useToolStore } from '../store/useToolStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useLanguageStore } from '../store/useLanguageStore';
 
 const RENTALS_STORAGE_KEY = 'sevaSarthi.rentals.v1';
 
@@ -574,9 +575,14 @@ export default function ToolRentalPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuthStore();
   const { tools, loading: isLoading, error: loadError, fetchTools, createRental } = useToolStore();
+  const { t } = useLanguageStore();
   
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [maxPrice, setMaxPrice] = useState(10000);
+  const [sortBy, setSortBy] = useState("relevance");
+  const [condition, setCondition] = useState("All");
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [selectedTool, setSelectedTool] = useState(null);
 
   React.useEffect(() => {
@@ -584,21 +590,47 @@ export default function ToolRentalPage() {
   }, [activeCategory, fetchTools]);
 
   const filteredTools = useMemo(() => {
-    return tools.filter(tool => {
+    const base = tools.filter(tool => {
       const matchesCategory = activeCategory === "All" || tool.category === activeCategory;
       const q = searchQuery.trim().toLowerCase();
       const matchesSearch =
         q.length === 0 ||
         tool.name.toLowerCase().includes(q) ||
         (tool.description && tool.description.toLowerCase().includes(q));
-      return matchesCategory && matchesSearch;
+      
+      const matchesPrice = (tool.dailyRate || 0) <= maxPrice;
+      const matchesCondition = condition === "All" || tool.condition === condition;
+      const matchesAvailability = !onlyAvailable || tool.status === 'available';
+
+      return matchesCategory && matchesSearch && matchesPrice && matchesCondition && matchesAvailability;
     });
-  }, [tools, activeCategory, searchQuery]);
+
+    const sorted = [...base];
+    if (sortBy === "priceLowHigh") sorted.sort((a, b) => a.dailyRate - b.dailyRate);
+    if (sortBy === "priceHighLow") sorted.sort((a, b) => b.dailyRate - a.dailyRate);
+    // Note: If rating exists in data, we could sort by rating. For now, stick to price and relevance.
+    return sorted;
+  }, [tools, activeCategory, searchQuery, maxPrice, condition, onlyAvailable, sortBy]);
+
+  const removeFilter = (type, value) => {
+    if (type === 'search') setSearchQuery('');
+    if (type === 'category') setActiveCategory('All');
+    if (type === 'price') setMaxPrice(10000);
+    if (type === 'condition') setCondition('All');
+    if (type === 'availability') setOnlyAvailable(false);
+  };
 
   const handleClearFilters = () => {
     setActiveCategory('All');
     setSearchQuery('');
+    setMaxPrice(10000);
+    setSortBy('relevance');
+    setCondition('All');
+    setOnlyAvailable(false);
+    toast('Filters cleared', { icon: '🔄' });
   };
+
+  const hasActiveFilters = searchQuery.trim().length > 0 || activeCategory !== 'All' || maxPrice < 10000 || condition !== 'All' || onlyAvailable || sortBy !== 'relevance';
 
   const handleRetryLoad = () => {
     fetchTools(activeCategory);
@@ -640,48 +672,142 @@ export default function ToolRentalPage() {
       <div className="min-h-screen pt-8 pb-20 px-4 sm:px-8">
         <main className="max-w-[1440px] mx-auto">
 
-          <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-slate-200">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-extrabold font-jakarta tracking-tight text-slate-900 mb-3">Tool Depot</h1>
-              <p className="text-slate-500 font-medium text-lg max-w-xl">Commercial-grade equipment delivered instantly to your door. Rent by the day, week, or month.</p>
+          <header className="mb-10">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-slate-200">
+              <div>
+                <h1 className="text-4xl md:text-5xl font-extrabold font-headline tracking-tight text-brand mb-3">Tool Depot</h1>
+                <p className="text-slate-500 font-medium text-lg max-w-xl">Commercial-grade equipment delivered instantly to your door. Rent by the day, week, or month.</p>
+              </div>
+              
+              {/* Industry Level Search Bar */}
+              <div className="relative w-full md:w-[450px] group">
+                <div className="flex items-center bg-white border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-teal-600 transition-all shadow-sm group-hover:shadow-md">
+                  <span className="material-symbols-outlined pl-4 text-slate-400 group-focus-within:text-teal-600">search</span>
+                  <input 
+                    type="text" 
+                    placeholder={t('tr_search_placeholder')} 
+                    className="flex-grow px-3 py-3.5 bg-transparent border-none focus:ring-0 text-slate-800 font-medium"
+                    value={searchQuery} 
+                    onChange={(e) => setSearchQuery(e.target.value)} 
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="p-1 mr-1 text-slate-400 hover:text-slate-600">
+                      <span className="material-symbols-outlined text-xl">close</span>
+                    </button>
+                  )}
+                  <button className="bg-teal-600 text-white px-5 py-3.5 font-bold hover:bg-teal-700 transition-colors">
+                    {t('sd_search')}
+                  </button>
+                </div>
+              </div>
             </div>
-            
-            {/* Live Search */}
-            <div className="relative w-full md:w-80 group">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 group-focus-within:text-teal-600 transition-colors">search</span>
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium text-slate-800 placeholder-slate-400 shadow-sm" placeholder="Search equipment..." type="text" />
-            </div>
+
+            {/* Active Filter Chips */}
+            {hasActiveFilters && (
+              <div className="flex flex-wrap items-center gap-2 mt-6">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">{t('sd_active_filters')}:</span>
+                {searchQuery && (
+                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                    {t('sd_search')}: {searchQuery}
+                    <button onClick={() => removeFilter('search')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                  </div>
+                )}
+                {activeCategory !== 'All' && (
+                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                    {activeCategory}
+                    <button onClick={() => removeFilter('category')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                  </div>
+                )}
+                {maxPrice < 10000 && (
+                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                    Under ₹{maxPrice}
+                    <button onClick={() => removeFilter('price')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                  </div>
+                )}
+                {condition !== 'All' && (
+                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                    {condition}
+                    <button onClick={() => removeFilter('condition')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                  </div>
+                )}
+                {onlyAvailable && (
+                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                    {t('tr_in_stock')}
+                    <button onClick={() => removeFilter('availability')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                  </div>
+                )}
+                <button onClick={handleClearFilters} className="text-xs font-bold text-teal-600 hover:underline px-2">{t('sd_clear_all')}</button>
+              </div>
+            )}
           </header>
 
           <div className="flex flex-col lg:flex-row gap-10">
             
-            {/* Sidebar Categories */}
-            <aside className="w-full lg:w-64 flex-shrink-0">
-               <div className="bg-white p-4 lg:p-6 rounded-2xl border border-slate-200/60 shadow-card lg:sticky lg:top-28">
-                 <h3 className="font-bold text-slate-800 mb-4 hidden lg:flex items-center gap-2">
-                   <span className="material-symbols-outlined text-teal-600 text-lg">filter_list</span>
-                   Equipment Types
-                 </h3>
-                 <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto scrollbar-hide pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
-                   {categories.map(cat => (
-                     <button
-                       key={cat}
-                       onClick={() => setActiveCategory(cat)}
-                       className={`px-4 py-3 rounded-xl text-left font-bold transition-all flex items-center justify-between group flex-shrink-0 whitespace-nowrap ${activeCategory === cat ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-slate-50'}`}>
-                       {cat}
-                       <span className="material-symbols-outlined text-sm opacity-0 group-hover:opacity-100 transition-opacity hidden lg:block">chevron_right</span>
-                     </button>
-                   ))}
+            {/* Sidebar Categories & Filters */}
+            <aside className="w-full lg:w-72 flex-shrink-0">
+               <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-card lg:sticky lg:top-28 space-y-8">
+                 <div>
+                   <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                     <span className="material-symbols-outlined text-teal-600 text-lg">filter_list</span>
+                     {t('tr_equipment_types')}
+                   </h3>
+                   <div className="flex flex-row lg:flex-col gap-1.5 overflow-x-auto scrollbar-hide pb-2 lg:pb-0">
+                     {categories.map(cat => (
+                       <button
+                         key={cat}
+                         onClick={() => setActiveCategory(cat)}
+                         className={`px-4 py-2.5 rounded-xl text-left text-sm font-bold transition-all flex items-center justify-between group flex-shrink-0 whitespace-nowrap ${activeCategory === cat ? 'bg-teal-600 text-white shadow-md shadow-teal-500/20' : 'text-slate-600 hover:bg-slate-50'}`}>
+                         {cat}
+                         <span className={`material-symbols-outlined text-sm transition-opacity hidden lg:block ${activeCategory === cat ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>chevron_right</span>
+                       </button>
+                     ))}
+                   </div>
+                 </div>
+
+                 {/* Price Filter */}
+                 <div>
+                   <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">payments</span>{t('tr_max_budget')}</h3>
+                   <input type="range" min="100" max="10000" step="100" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-teal-600" />
+                   <div className="flex justify-between mt-2 text-xs font-bold text-slate-500"><span>₹100</span><span className="text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100">Up to ₹{maxPrice}</span></div>
+                 </div>
+
+                 {/* Condition Filter */}
+                 <div>
+                   <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">verified</span>{t('tr_condition')}</h3>
+                   <div className="flex flex-wrap gap-2">
+                     {["All", "Like New", "Excellent", "Good"].map(cond => (
+                       <button key={cond} onClick={() => setCondition(cond)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${condition === cond ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'}`}>
+                         {cond}
+                       </button>
+                     ))}
+                   </div>
+                 </div>
+
+                 {/* Sort & Availability */}
+                 <div className="pt-2 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">event_available</span>{t('tr_in_stock')}</h3>
+                      <button onClick={() => setOnlyAvailable(!onlyAvailable)} className={`w-10 h-5 rounded-full transition-colors relative ${onlyAvailable ? 'bg-teal-600' : 'bg-slate-200'}`}>
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${onlyAvailable ? 'left-6' : 'left-1'}`}></div>
+                      </button>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">sort</span>{t('sd_sort_by')}</h3>
+                      <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:border-teal-500 focus:ring-0 outline-none cursor-pointer">
+                        <option value="relevance">{t('tr_relevance')}</option>
+                        <option value="priceLowHigh">{t('tr_price_low_high')}</option>
+                        <option value="priceHighLow">{t('tr_price_high_low')}</option>
+                      </select>
+                    </div>
                  </div>
 
                  {/* Delivery Banner */}
-                 <div className="mt-8 bg-gradient-to-br from-slate-900 to-slate-800 p-5 rounded-2xl text-white relative overflow-hidden shadow-md hidden lg:block">
+                 <div className="mt-8 bg-gradient-to-br from-brand to-brand-light p-6 rounded-3xl text-white relative overflow-hidden shadow-lg hidden lg:block">
                     <span className="material-symbols-outlined text-teal-400 text-3xl mb-2 relative z-10">bolt</span>
-                    <h4 className="font-bold mb-1 relative z-10">Turbo Delivery</h4>
-                    <p className="text-xs text-slate-400 font-medium relative z-10">Hardware delivered to site in under 60 minutes.</p>
+                    <h4 className="font-bold mb-1 relative z-10 text-lg">Turbo Delivery</h4>
+                    <p className="text-xs text-slate-300 font-medium relative z-10 leading-relaxed">Hardware delivered to site in under 60 minutes. Pro-grade speed.</p>
+                    <div className="absolute -right-4 -bottom-4 opacity-10"><span className="material-symbols-outlined text-[100px]">local_shipping</span></div>
                  </div>
                </div>
             </aside>

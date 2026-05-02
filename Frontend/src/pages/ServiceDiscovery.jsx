@@ -56,6 +56,7 @@ export default function ServiceDiscovery() {
   );
   const [maxPrice, setMaxPrice] = useState(5000);
   const [sortBy, setSortBy] = useState('relevance');
+  const [minRating, setMinRating] = useState(0);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
@@ -75,11 +76,18 @@ export default function ServiceDiscovery() {
   };
   const handleViewProfile = (proId) => navigate(currentUser ? `/provider/${proId}` : '/auth');
 
-  const clearFilters = () => { setSearchTerm(''); setSelectedCategories([]); setMaxPrice(5000); setSortBy('relevance'); toast('Filters cleared', { icon: '🔄' }); };
-  const hasActiveFilters = searchTerm.trim().length > 0 || selectedCategories.length > 0 || maxPrice < 5000 || sortBy !== 'relevance';
+  const clearFilters = () => { setSearchTerm(''); setSelectedCategories([]); setMaxPrice(5000); setMinRating(0); setSortBy('relevance'); toast('Filters cleared', { icon: '🔄' }); };
+  const hasActiveFilters = searchTerm.trim().length > 0 || selectedCategories.length > 0 || maxPrice < 5000 || minRating > 0 || sortBy !== 'relevance';
 
   const toggleCategory = (catValue) => {
     setSelectedCategories(prev => prev.includes(catValue) ? prev.filter(c => c !== catValue) : [...prev, catValue]);
+  };
+
+  const removeFilter = (type, value) => {
+    if (type === 'search') setSearchTerm('');
+    if (type === 'category') setSelectedCategories(prev => prev.filter(c => c !== value));
+    if (type === 'price') setMaxPrice(5000);
+    if (type === 'rating') setMinRating(0);
   };
 
   const filteredServices = useMemo(() => {
@@ -88,12 +96,10 @@ export default function ServiceDiscovery() {
       const proNameText = (svc.providerId?.name || '').toLowerCase();
       const catText = (svc.category || '').toLowerCase();
       
-      // Split search term into words, ignoring small words
       const searchWords = searchTerm.toLowerCase().split(/\s+/).filter(w => w.length > 2);
       
       let matchSearch = true;
       if (searchWords.length > 0) {
-        // If at least one meaningful word matches the service name, provider name, or category
         matchSearch = searchWords.some(word => 
           nameText.includes(word) || proNameText.includes(word) || catText.includes(word)
         );
@@ -101,70 +107,170 @@ export default function ServiceDiscovery() {
       
       const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(svc.category);
       const matchPrice = svc.basePrice <= maxPrice;
-      return matchSearch && matchCategory && matchPrice;
+      const matchRating = (svc.rating || 5) >= minRating;
+      return matchSearch && matchCategory && matchPrice && matchRating;
     });
+
     const sorted = [...base];
     if (sortBy === 'lowestPrice') sorted.sort((a, b) => a.basePrice - b.basePrice);
+    if (sortBy === 'highestPrice') sorted.sort((a, b) => b.basePrice - a.basePrice);
+    if (sortBy === 'highestRated') sorted.sort((a, b) => (b.rating || 5) - (a.rating || 5));
     return sorted;
-  }, [services, searchTerm, selectedCategories, maxPrice, sortBy]);
+  }, [services, searchTerm, selectedCategories, maxPrice, minRating, sortBy]);
 
   return (
     <div className="min-h-screen pt-8 pb-20">
-      <main className="section-container flex flex-col lg:flex-row gap-8">
-        {/* Sidebar */}
-        <aside className="w-full lg:w-72 flex-shrink-0 space-y-5">
-          <div className="lg:hidden flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm cursor-pointer" onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}>
-            <span className="font-bold text-slate-800 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600">tune</span> {t('sd_filters')}</span>
-            <span className="material-symbols-outlined text-slate-500">{isMobileFiltersOpen ? 'expand_less' : 'expand_more'}</span>
-          </div>
-          <div className={`space-y-5 ${isMobileFiltersOpen ? 'block' : 'hidden lg:block'}`}>
-            <div className="card p-6">
-            <div className="mb-6">
-              <div className="relative group">
-                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-600 transition-colors">search</span>
-                <input type="text" placeholder={t('sd_search_placeholder')} className="input-field !pl-11" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              </div>
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('sd_filters_label')}</p>
-                <button onClick={clearFilters} disabled={!hasActiveFilters} className="text-xs font-semibold text-teal-600 disabled:text-slate-300 disabled:cursor-not-allowed hover:underline">{t('sd_clear_all')}</button>
-              </div>
-            </div>
-            <div className="mb-6">
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">category</span>{t('sd_categories')}</h3>
-              <div className="flex flex-wrap gap-2">
-                {allCategories.map(cat => (
-                  <button key={cat.value} onClick={() => toggleCategory(cat.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border ${selectedCategories.includes(cat.value) ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'}`}>
-                    {t(cat.key)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="mb-6">
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">payments</span>{t('sd_max_budget')}</h3>
-              <input type="range" min="200" max="5000" step="100" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-teal-600" />
-              <div className="flex justify-between mt-2 text-xs font-semibold text-slate-500"><span>₹200</span><span className="text-teal-700 bg-teal-50 px-2 py-0.5 rounded">Up to ₹{maxPrice}</span></div>
-            </div>
+      <main className="section-container">
+        {/* Top Header & Search Area */}
+        <div className="mb-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
             <div>
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">schedule</span>{t('sd_availability')}</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <button className="px-3 py-2 rounded-lg text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-100">{t('sd_today')}</button>
-                <button className="px-3 py-2 rounded-lg text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">{t('sd_tomorrow')}</button>
+              <h1 className="section-heading !text-3xl lg:!text-4xl">{t('sd_top_services')}</h1>
+              <p className="section-subheading !mt-1 !text-base">{isLoading ? t('sd_loading') : `${filteredServices.length} ${t('sd_services_available')}`}</p>
+            </div>
+
+            {/* Industry Level Search Bar */}
+            <div className="relative w-full md:w-[450px] group">
+              <div className="flex items-center bg-white border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-teal-600 transition-all shadow-sm group-hover:shadow-md">
+                <span className="material-symbols-outlined pl-4 text-slate-400 group-focus-within:text-teal-600">search</span>
+                <input 
+                  type="text" 
+                  placeholder={t('sd_search_placeholder')} 
+                  className="flex-grow px-3 py-3.5 bg-transparent border-none focus:ring-0 text-slate-800 font-medium"
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm('')} className="p-1 mr-1 text-slate-400 hover:text-slate-600">
+                    <span className="material-symbols-outlined text-xl">close</span>
+                  </button>
+                )}
+                <button className="bg-teal-600 text-white px-5 py-3.5 font-bold hover:bg-teal-700 transition-colors">
+                  {t('sd_search')}
+                </button>
               </div>
             </div>
           </div>
-          <div className="bg-teal-600 p-6 rounded-2xl text-white relative overflow-hidden">
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-2"><span className="material-symbols-outlined text-amber-300">workspace_premium</span><h4 className="font-bold">{t('sd_seva_guaranteed')}</h4></div>
-              <p className="text-sm text-teal-100/90 leading-relaxed">{t('sd_seva_guaranteed_desc')}</p>
-            </div>
-            <div className="absolute -right-4 -bottom-4 opacity-10"><span className="material-symbols-outlined text-[80px]">verified_user</span></div>
-          </div>
-          </div>
-        </aside>
 
-        {/* Main Grid */}
-        <section className="flex-grow">
+          {/* Active Filter Chips */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2 mb-6">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">{t('sd_active_filters')}:</span>
+              {searchTerm && (
+                <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                  {t('sd_search')}: {searchTerm}
+                  <button onClick={() => removeFilter('search')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                </div>
+              )}
+              {selectedCategories.map(cat => (
+                <div key={cat} className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                  {cat}
+                  <button onClick={() => removeFilter('category', cat)} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                </div>
+              ))}
+              {maxPrice < 5000 && (
+                <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                  Under ₹{maxPrice}
+                  <button onClick={() => removeFilter('price')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                </div>
+              )}
+              {minRating > 0 && (
+                <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                  {minRating}+ Stars
+                  <button onClick={() => removeFilter('rating')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                </div>
+              )}
+              <button onClick={clearFilters} className="text-xs font-bold text-teal-600 hover:underline px-2">Clear All</button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar */}
+          <aside className="w-full lg:w-72 flex-shrink-0 space-y-5">
+            <div className="lg:hidden flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm cursor-pointer" onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}>
+              <span className="font-bold text-slate-800 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600">tune</span> {t('sd_filters')}</span>
+              <span className="material-symbols-outlined text-slate-500">{isMobileFiltersOpen ? 'expand_less' : 'expand_more'}</span>
+            </div>
+            <div className={`space-y-5 ${isMobileFiltersOpen ? 'block' : 'hidden lg:block'}`}>
+              <div className="card p-6 sticky top-24">
+              <div className="mb-6 flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('sd_filters_label')}</p>
+                <button onClick={clearFilters} disabled={!hasActiveFilters} className="text-xs font-bold text-teal-600 disabled:text-slate-300 disabled:cursor-not-allowed hover:underline">{t('sd_clear_all')}</button>
+              </div>
+
+              <div className="mb-8">
+                <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">category</span>{t('sd_categories')}</h3>
+                <div className="flex flex-wrap gap-2">
+                  {allCategories.map(cat => (
+                    <button key={cat.value} onClick={() => toggleCategory(cat.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 border ${selectedCategories.includes(cat.value) ? 'bg-teal-600 text-white border-teal-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'}`}>
+                      {t(cat.key)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">payments</span>{t('sd_max_budget')}</h3>
+                <input type="range" min="200" max="5000" step="100" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-teal-600" />
+                <div className="flex justify-between mt-2 text-xs font-bold text-slate-500"><span>₹200</span><span className="text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100">Up to ₹{maxPrice}</span></div>
+              </div>
+
+              <div className="mb-8">
+                <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">star</span>{t('sd_rating')}</h3>
+                <div className="space-y-2">
+                  {[4, 3, 2].map(rating => (
+                    <button 
+                      key={rating} 
+                      onClick={() => setMinRating(minRating === rating ? 0 : rating)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all border ${minRating === rating ? 'bg-amber-50 text-amber-700 border-amber-200 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-amber-200'}`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <div className="flex text-amber-400">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <span key={i} className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: `'FILL' ${i < rating ? 1 : 0}` }}>star</span>
+                          ))}
+                        </div>
+                        & Above
+                      </span>
+                      {minRating === rating && <span className="material-symbols-outlined text-sm">check_circle</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">sort</span>{t('sd_sort_by')}</h3>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:border-teal-500 focus:ring-0 outline-none cursor-pointer">
+                  <option value="relevance">{t('sd_sort_relevance')}</option>
+                  <option value="highestRated">{t('sd_sort_highest')}</option>
+                  <option value="lowestPrice">{t('sd_sort_lowest')}</option>
+                  <option value="highestPrice">{t('sd_sort_highest_price')}</option>
+                </select>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">schedule</span>{t('sd_availability')}</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="px-3 py-2.5 rounded-xl text-xs font-bold bg-teal-50 text-teal-700 border border-teal-100 shadow-sm">{t('sd_today')}</button>
+                  <button className="px-3 py-2.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">{t('sd_tomorrow')}</button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-teal-600 p-6 rounded-3xl text-white relative overflow-hidden shadow-lg">
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2"><span className="material-symbols-outlined text-amber-300">workspace_premium</span><h4 className="font-bold">{t('sd_seva_guaranteed')}</h4></div>
+                <p className="text-xs text-teal-100/90 leading-relaxed font-medium">{t('sd_seva_guaranteed_desc')}</p>
+              </div>
+              <div className="absolute -right-4 -bottom-4 opacity-10"><span className="material-symbols-outlined text-[80px]">verified_user</span></div>
+            </div>
+            </div>
+          </aside>
+
+          {/* Main Grid */}
+          <section className="flex-grow">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-4">
             <div>
               <h1 className="section-heading !text-2xl lg:!text-3xl">{t('sd_top_services')}</h1>
@@ -259,7 +365,8 @@ export default function ServiceDiscovery() {
             )}
           </div>
         </section>
-      </main>
+      </div>
+    </main>
     </div>
   );
 }

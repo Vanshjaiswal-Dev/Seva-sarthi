@@ -136,7 +136,7 @@ export default function LandingPage() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {services.map((s, i) => (
-              <motion.div key={s.label} initial="hidden" whileInView="visible" viewport={{once:true,margin:"-50px"}} variants={fadeUp} custom={i*0.1}
+              <motion.div key={s.labelKey} initial="hidden" whileInView="visible" viewport={{once:true,margin:"-50px"}} variants={fadeUp} custom={i*0.1}
                 onClick={() => navigate('/services', {state:{category:s.labelKey}})}
                 className="card card-hover cursor-pointer p-8 flex flex-col items-center gap-5 text-center group border-slate-200/50 bg-surface/50 backdrop-blur-sm">
                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${s.color} transition-transform duration-300 group-hover:scale-110 shadow-sm`}>

@@ -116,7 +116,22 @@ const en = {
   sd_no_services: "No services found",
   sd_no_services_hint: "Try removing some filters or expanding your budget.",
   sd_clear_filters: "Clear All Filters",
-  sd_by: "by",
+  sd_services_available: "services available",
+  sd_sort_highest_price: "Price: High to Low",
+  sd_search: "Search",
+  sd_active_filters: "Active Filters",
+  sd_rating: "Rating",
+  sd_sort_by: "Sort By",
+
+  // ─── Tool Rental ──────────────────────────────────────────
+  tr_search_placeholder: "Search equipment...",
+  tr_equipment_types: "Equipment Types",
+  tr_max_budget: "Max Budget",
+  tr_condition: "Condition",
+  tr_in_stock: "In Stock",
+  tr_relevance: "Relevance",
+  tr_price_low_high: "Price: Low to High",
+  tr_price_high_low: "Price: High to Low",
 
   // ─── Authentication ───────────────────────────────────────
   auth_create_account: "Create Account",
