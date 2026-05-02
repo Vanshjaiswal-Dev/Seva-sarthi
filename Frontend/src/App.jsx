@@ -23,8 +23,8 @@ import { Toaster } from 'react-hot-toast';
 import SessionManager from "./components/SessionManager"; // New component for session timeouts
 import socketService from "./lib/socket";
 import { useAuthStore } from "./store/useAuthStore";
-
 import { useNotificationStore } from "./store/useNotificationStore";
+import InstallPWA from "./components/InstallPWA";
 
 function App() {
   const { token } = useAuthStore();
@@ -37,6 +37,7 @@ function App() {
       const timer = setTimeout(() => {
         useNotificationStore.getState().startListening();
         useNotificationStore.getState().fetchNotifications();
+        useNotificationStore.getState().subscribeToWebPush();
       }, 500);
       return () => {
         clearTimeout(timer);
@@ -48,6 +49,20 @@ function App() {
       socketService.disconnect();
     }
   }, [token]);
+
+  // Sync offline bookings when network returns
+  useEffect(() => {
+    const handleOnline = () => {
+      import('./store/useBookingStore').then(({ useBookingStore }) => {
+        useBookingStore.getState().syncOfflineBookings();
+      });
+    };
+    window.addEventListener('online', handleOnline);
+    // Initial check on load
+    if (navigator.onLine) handleOnline();
+
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
 
   return (
       <Router>
@@ -144,6 +159,7 @@ function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
+        <InstallPWA />
         <SevaAI />
       </Router>
   );

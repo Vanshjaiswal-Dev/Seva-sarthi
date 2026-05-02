@@ -76,4 +76,50 @@ export const useNotificationStore = create((set, get) => ({
     socketService.off('notification:count');
     set({ _listening: false });
   },
+
+  subscribeToWebPush: async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      
+      // Check if notification permission is available
+      if (Notification.permission === 'denied') return;
+      
+      // Wait for the service worker to be ready
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      
+      if (!subscription) {
+        // Ask permission first
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+        
+        const vapidPublicKey = 'BPtfqb63qPnbCu5ZZNQaz_jBqpUGNqT7Pit03ojCIcr1WdMdSFX1Es2wPak3i2gLVESlWjYF9GzWgPZn_TXKneA';
+        const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+        
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey
+        });
+      }
+
+      await api.post('/push/subscribe', subscription);
+    } catch (err) {
+      // Silently fail in dev mode — push only works with HTTPS in production
+      if (err.name !== 'NotAllowedError') {
+        console.warn('Web Push not available:', err.message);
+      }
+    }
+  }
 }));
+
+// Utility to convert Base64 string to Uint8Array
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}

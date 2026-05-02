@@ -1,5 +1,6 @@
 const Notification = require('../models/Notification');
 const { getIO } = require('../config/socket');
+const { sendPushToUser } = require('../controllers/push.controller');
 
 /**
  * Create a notification and push it via WebSocket in real-time.
@@ -14,6 +15,17 @@ const createAndPushNotification = async ({ userId, title, message, type = 'syste
       type,
       metadata,
     });
+
+    // Send OS level Push Notification if subscribed
+    try {
+      await sendPushToUser(userId, {
+        title,
+        body: message,
+        data: metadata
+      });
+    } catch (err) {
+      console.error('Error sending Web Push:', err.message);
+    }
 
     // Push via WebSocket
     try {

@@ -25,6 +25,7 @@ const couponRoutes = require('./routes/coupon.routes');
 const adminRoutes = require('./routes/admin.routes');
 const complaintRoutes = require('./routes/complaint.routes');
 const aiRoutes = require('./routes/ai.routes');
+const pushRoutes = require('./routes/push.routes');
 const { initGemini } = require('./services/ai.service');
 
 const app = express();
@@ -36,7 +37,7 @@ const io = initSocket(server);
 // ── Middleware ────────────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173', 'http://localhost:4173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -67,6 +68,7 @@ app.get('/', (req, res) => {
       admin: '/api/admin',
       complaints: '/api/complaints',
       ai: '/api/ai',
+      push: '/api/push',
     },
   });
 });
@@ -84,6 +86,7 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/push', pushRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -125,3 +128,4 @@ process.on('unhandledRejection', (err) => {
   console.error('UNHANDLED REJECTION:', err.message);
   server.close(() => process.exit(1));
 });
+ 
