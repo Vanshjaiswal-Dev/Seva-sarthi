@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { BOOKING_STATUS, PAYMENT_METHODS } = require('../utils/constants');
+const { BOOKING_STATUS, PAYMENT_METHODS, PAYMENT_STATUS } = require('../utils/constants');
 
 const trackingStepSchema = new mongoose.Schema(
   {
@@ -113,6 +113,19 @@ const bookingSchema = new mongoose.Schema(
     isReviewed: {
       type: Boolean,
       default: false,
+    },
+    paymentStatus: {
+      type: String,
+      enum: Object.values(PAYMENT_STATUS),
+      default: PAYMENT_STATUS.PENDING,
+    },
+    razorpayOrderId: {
+      type: String,
+      default: '',
+    },
+    razorpayPaymentId: {
+      type: String,
+      default: '',
     },
   },
   {

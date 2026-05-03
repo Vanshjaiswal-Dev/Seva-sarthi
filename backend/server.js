@@ -26,6 +26,7 @@ const adminRoutes = require('./routes/admin.routes');
 const complaintRoutes = require('./routes/complaint.routes');
 const aiRoutes = require('./routes/ai.routes');
 const pushRoutes = require('./routes/push.routes');
+const paymentRoutes = require('./routes/payment.routes');
 const { initGemini } = require('./services/ai.service');
 
 const app = express();
@@ -69,6 +70,7 @@ app.get('/', (req, res) => {
       complaints: '/api/complaints',
       ai: '/api/ai',
       push: '/api/push',
+      payments: '/api/payments',
     },
   });
 });
@@ -87,6 +89,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

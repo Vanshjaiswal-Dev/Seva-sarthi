@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { RENTAL_STATUS } = require('../utils/constants');
+const { RENTAL_STATUS, PAYMENT_STATUS } = require('../utils/constants');
 
 const deliveryDetailsSchema = new mongoose.Schema(
   {
@@ -72,6 +72,19 @@ const rentalSchema = new mongoose.Schema(
       default: '',
     },
     returnOtp: {
+      type: String,
+      default: '',
+    },
+    paymentStatus: {
+      type: String,
+      enum: Object.values(PAYMENT_STATUS),
+      default: PAYMENT_STATUS.PENDING,
+    },
+    razorpayOrderId: {
+      type: String,
+      default: '',
+    },
+    razorpayPaymentId: {
       type: String,
       default: '',
     },

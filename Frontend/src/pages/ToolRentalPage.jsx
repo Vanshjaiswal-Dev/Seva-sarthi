@@ -6,6 +6,7 @@ import { useToolStore } from '../store/useToolStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { openRazorpayCheckout } from '../lib/razorpay';
 
 const RENTALS_STORAGE_KEY = 'sevaSarthi.rentals.v1';
 
@@ -126,20 +127,70 @@ function CartDrawer({ tool, onClose, onConfirm }) {
     setStep(3);
   };
 
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+
   const handleProcessPayment = () => {
-    // mock payment + order creation
-    setStep(4);
-    setTimeout(() => {
-      onConfirm({
-        toolId: tool.id,
+    setIsPaymentProcessing(true);
+
+    // Get current user from auth store
+    const authStorage = localStorage.getItem('auth-storage');
+    let currentUser = null;
+    try {
+      if (authStorage) {
+        const { state } = JSON.parse(authStorage);
+        currentUser = state?.currentUser || null;
+      }
+    } catch (e) { /* ignore */ }
+
+    openRazorpayCheckout({
+      amount: total,
+      type: 'rental',
+      payload: {
+        toolId: tool.id || tool._id,
         toolName: tool.name,
         days,
-        total,
-        refundableDeposit,
-        details,
-        createdAt: new Date().toISOString(),
-      });
-    }, 2200);
+        deliveryDetails: {
+          fullName: details.fullName,
+          phone: details.phone,
+          addressLine1: details.addressLine1,
+          addressLine2: details.addressLine2,
+          city: details.city,
+          pincode: details.pincode,
+          landmark: details.landmark,
+          deliveryDate: details.deliveryDate,
+          deliveryWindow: details.deliveryWindow,
+          idType: details.idType,
+          idNumber: details.idNumber,
+          notes: details.notes,
+        },
+      },
+      user: {
+        name: currentUser?.name || details.fullName || '',
+        email: currentUser?.email || '',
+        phone: currentUser?.phone || details.phone || '',
+      },
+      metadata: { toolName: tool.name },
+      onSuccess: (rental) => {
+        setIsPaymentProcessing(false);
+        setStep(4);
+        setTimeout(() => {
+          onConfirm({
+            _fromRazorpay: true, // signal that rental was already created
+            toolId: tool.id || tool._id,
+            toolName: tool.name,
+            days,
+            total,
+            refundableDeposit,
+            details,
+            rental,
+          });
+        }, 2200);
+      },
+      onError: (errorMsg) => {
+        setIsPaymentProcessing(false);
+        toast.error(errorMsg || 'Payment failed. Please try again.');
+      },
+    });
   };
 
   return (
@@ -491,8 +542,8 @@ function CartDrawer({ tool, onClose, onConfirm }) {
               </div>
 
               <div className="bg-teal-50 border border-teal-100 p-4 rounded-2xl flex items-start gap-3">
-                <span className="material-symbols-outlined text-teal-600 mt-0.5">info</span>
-                <p className="text-sm text-teal-800/90 font-medium">In production, payment and deposit are handled via a payment gateway with KYC-safe flows. This demo uses mock confirmation.</p>
+                <span className="material-symbols-outlined text-teal-600 mt-0.5">lock</span>
+                <p className="text-sm text-teal-800/90 font-medium">Your payment is securely processed via <strong>Razorpay</strong>. Deposit of ₹{refundableDeposit} will be held separately and refunded after tool return.</p>
               </div>
             </motion.div>
           )}
@@ -527,14 +578,18 @@ function CartDrawer({ tool, onClose, onConfirm }) {
 
             <button 
               onClick={step === 1 ? () => setStep(2) : step === 2 ? handleProceedFromDetails : handleProcessPayment}
-              className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-teal-600 hover:shadow-lg hover:shadow-teal-500/30 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2"
+              disabled={isPaymentProcessing}
+              className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-teal-600 hover:shadow-lg hover:shadow-teal-500/30 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait"
             >
-              {step === 1 ? 'Continue' : step === 2 ? 'Review order' : `Confirm & Pay ₹${total}`}
-              <span className="material-symbols-outlined text-lg">{step === 1 ? 'arrow_forward' : step === 2 ? 'fact_check' : 'lock'}</span>
+              {isPaymentProcessing ? (
+                <><span className="material-symbols-outlined animate-spin text-lg">progress_activity</span> Processing Payment...</>
+              ) : step === 1 ? 'Continue' : step === 2 ? 'Review order' : (
+                <><span className="material-symbols-outlined text-lg">lock</span> Pay ₹{total} & Confirm</>
+              )}
             </button>
 
             <p className="text-[11px] text-slate-400 font-semibold leading-relaxed text-center">
-              By confirming, you agree to the rental terms and policies. This is a demo checkout (mock payment).
+              Payments are securely processed via Razorpay. By confirming, you agree to the rental terms and policies.
             </p>
           </div>
         )}
@@ -646,6 +701,15 @@ export default function ToolRentalPage() {
 
   const handleConfirmed = async (rentalData) => {
     if (rentalData && currentUser) {
+      // If payment was processed via Razorpay, rental is already created on backend
+      if (rentalData._fromRazorpay) {
+        toast.success(`Rental confirmed: ${rentalData.toolName}`);
+        setSelectedTool(null);
+        navigate('/user/dashboard');
+        return;
+      }
+
+      // Fallback for any non-Razorpay flow
       try {
         await createRental({
           toolId: rentalData.toolId,

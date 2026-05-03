@@ -134,6 +134,13 @@ const PAYMENT_METHODS = {
   CASH: 'cash_after_service',
 };
 
+// Payment statuses (Razorpay lifecycle)
+const PAYMENT_STATUS = {
+  PENDING: 'pending',
+  PAID: 'paid',
+  FAILED: 'failed',
+};
+
 module.exports = {
   ROLES,
   BOOKING_STATUS,
@@ -149,4 +156,5 @@ module.exports = {
   BUSINESS_TYPES,
   PROVIDER_STATUS,
   PAYMENT_METHODS,
+  PAYMENT_STATUS,
 };

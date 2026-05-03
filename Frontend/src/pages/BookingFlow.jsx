@@ -8,7 +8,9 @@ import { addDays, format, isSameDay, isWeekend, startOfToday } from 'date-fns';
 import 'react-day-picker/dist/style.css';
 import { useProviderStore } from '../store/useProviderStore';
 import { useBookingStore } from '../store/useBookingStore';
+import { useAuthStore } from '../store/useAuthStore';
 import api from '../lib/axios';
+import { openRazorpayCheckout } from '../lib/razorpay';
 
 export default function BookingFlow() {
   const navigate = useNavigate();
@@ -23,9 +25,12 @@ export default function BookingFlow() {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [eligibleCoupons, setEligibleCoupons] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('online');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const { getProviderById } = useProviderStore();
   const { createBooking } = useBookingStore();
+  const { currentUser } = useAuthStore();
 
   const providerId = location.state?.providerId || null;
   const serviceId = location.state?.serviceId;
@@ -134,32 +139,63 @@ export default function BookingFlow() {
       return;
     }
 
-    toast.loading('Processing your booking...', { id: 'BOOKING' });
-    try {
-      await createBooking({
-        providerId,
-        serviceId,
-        serviceName,
-        scheduledDate: selectedDate.toISOString(),
-        scheduledTime: selectedTime,
-        address,
-        instructions,
-        photos,
-        paymentMethod: 'online',
-        couponCode,
-        baseRate,
-        platformFee,
-        discount: discountAmount,
-        tax: taxes,
-        totalAmount: total,
-      });
+    const bookingPayload = {
+      providerId,
+      serviceId,
+      serviceName,
+      scheduledDate: selectedDate?.toISOString(),
+      scheduledTime: selectedTime,
+      address,
+      instructions,
+      photos,
+      paymentMethod,
+      couponCode,
+      baseRate,
+      platformFee,
+      discount: discountAmount,
+      tax: taxes,
+      totalAmount: total,
+    };
 
-      setStep(4);
-      toast.success('Booking confirmed successfully!', { id: 'BOOKING' }); 
-      setTimeout(() => navigate('/user/dashboard'), 2500); 
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to create booking', { id: 'BOOKING' });
+    // ── Cash / Pay After Service flow ─────────────────────────
+    if (paymentMethod === 'cash_after_service') {
+      toast.loading('Processing your booking...', { id: 'BOOKING' });
+      try {
+        await createBooking(bookingPayload);
+        setStep(4);
+        toast.success('Booking confirmed successfully!', { id: 'BOOKING' });
+        setTimeout(() => navigate('/user/dashboard'), 2500);
+      } catch (error) {
+        toast.error(error?.response?.data?.message || 'Failed to create booking', { id: 'BOOKING' });
+      }
+      return;
     }
+
+    // ── Online Payment (Razorpay) flow ────────────────────────
+    setIsProcessingPayment(true);
+    toast.loading('Initiating payment...', { id: 'BOOKING' });
+
+    openRazorpayCheckout({
+      amount: total,
+      type: 'booking',
+      payload: bookingPayload,
+      user: {
+        name: currentUser?.name || '',
+        email: currentUser?.email || '',
+        phone: currentUser?.phone || '',
+      },
+      metadata: { serviceName, providerId },
+      onSuccess: (booking) => {
+        setIsProcessingPayment(false);
+        setStep(4);
+        toast.success('Payment successful! Booking confirmed.', { id: 'BOOKING' });
+        setTimeout(() => navigate('/user/dashboard'), 2500);
+      },
+      onError: (errorMsg) => {
+        setIsProcessingPayment(false);
+        toast.error(errorMsg || 'Payment failed. Please try again.', { id: 'BOOKING' });
+      },
+    });
   };
 
   const handleApplyCoupon = async (codeToApply = couponCode) => {
@@ -457,21 +493,28 @@ export default function BookingFlow() {
                   <div className="card p-6 md:p-8">
                     <h4 className="font-bold text-brand mb-4 text-lg">Payment Method</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <label className="flex items-center gap-3 p-4 border-2 border-accent bg-accent/5 rounded-xl cursor-pointer relative overflow-hidden transition-all shadow-sm">
-                        <input type="radio" name="payment" defaultChecked className="accent-accent-dark w-4 h-4 z-10" />
-                        <span className="font-bold text-brand text-sm flex items-center gap-2 z-10"><span className="material-symbols-outlined text-accent-dark text-xl">credit_card</span>Online Payment</span>
+                      <label onClick={() => setPaymentMethod('online')} className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer relative overflow-hidden transition-all shadow-sm ${paymentMethod === 'online' ? 'border-accent bg-accent/5' : 'border-slate-200 hover:border-slate-300 bg-surface'}`}>
+                        <input type="radio" name="payment" checked={paymentMethod === 'online'} onChange={() => setPaymentMethod('online')} className="accent-accent-dark w-4 h-4 z-10" />
+                        <span className={`font-bold text-sm flex items-center gap-2 z-10 ${paymentMethod === 'online' ? 'text-brand' : 'text-slate-500'}`}><span className={`material-symbols-outlined text-xl ${paymentMethod === 'online' ? 'text-accent-dark' : 'text-slate-400'}`}>credit_card</span>Online Payment</span>
+                        {paymentMethod === 'online' && <img src="https://cdn.razorpay.com/static/assets/logo/payment.svg" alt="Razorpay" className="absolute bottom-2 right-3 h-4 opacity-50" onError={(e) => e.target.style.display = 'none'} />}
                       </label>
-                      <label className="flex items-center gap-3 p-4 border-2 border-slate-200 hover:border-slate-300 bg-surface rounded-xl cursor-pointer transition-all">
-                        <input type="radio" name="payment" className="accent-brand w-4 h-4" />
-                        <span className="font-bold text-slate-500 text-sm flex items-center gap-2"><span className="material-symbols-outlined text-slate-400 text-xl">payments</span>Pay After Service</span>
+                      <label onClick={() => setPaymentMethod('cash_after_service')} className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${paymentMethod === 'cash_after_service' ? 'border-accent bg-accent/5' : 'border-slate-200 hover:border-slate-300 bg-surface'}`}>
+                        <input type="radio" name="payment" checked={paymentMethod === 'cash_after_service'} onChange={() => setPaymentMethod('cash_after_service')} className="accent-brand w-4 h-4" />
+                        <span className={`font-bold text-sm flex items-center gap-2 ${paymentMethod === 'cash_after_service' ? 'text-brand' : 'text-slate-500'}`}><span className={`material-symbols-outlined text-xl ${paymentMethod === 'cash_after_service' ? 'text-accent-dark' : 'text-slate-400'}`}>payments</span>Pay After Service</span>
                       </label>
                     </div>
                   </div>
 
                   <div className="flex justify-between items-center pt-4">
                     <button onClick={handleBack} className="text-slate-500 font-bold px-4 py-3 hover:text-brand transition-colors flex items-center gap-1"><span className="material-symbols-outlined text-lg">arrow_back</span> Back</button>
-                    <button onClick={handleBooking} className="btn-accent !px-8 !py-4 shadow-premium">
-                      Confirm Booking <span className="material-symbols-outlined text-[22px]">verified</span>
+                    <button onClick={handleBooking} disabled={isProcessingPayment} className="btn-accent !px-8 !py-4 shadow-premium disabled:opacity-60 disabled:cursor-wait">
+                      {isProcessingPayment ? (
+                        <><span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span> Processing...</>
+                      ) : paymentMethod === 'online' ? (
+                        <><span className="material-symbols-outlined text-[20px]">lock</span> Pay ₹{total.toFixed(2)} & Book</>
+                      ) : (
+                        <>Confirm Booking <span className="material-symbols-outlined text-[22px]">verified</span></>
+                      )}
                     </button>
                   </div>
                 </motion.div>
