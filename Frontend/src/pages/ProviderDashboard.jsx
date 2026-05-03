@@ -29,7 +29,14 @@ export default function ProviderDashboard() {
   const [schedule, setSchedule] = useState([]);
   const [rentals, setRentals] = useState([]);
   const { fetchProviderRentals, updateRentalStatus } = useToolStore();
-  const [stats, setStats] = useState({ todayJobs:0, weeklyEarnings:0, totalEarnings:0, rating:0, completionRate:'0%', jobsCompleted:0 });
+  // Restore cached stats instantly on mount to avoid flash of zeros
+  const [stats, setStats] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('pd_stats');
+      return cached ? JSON.parse(cached) : { todayJobs:0, weeklyEarnings:0, totalEarnings:0, rating:0, completionRate:'0%', jobsCompleted:0 };
+    } catch { return { todayJobs:0, weeklyEarnings:0, totalEarnings:0, rating:0, completionRate:'0%', jobsCompleted:0 }; }
+  });
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('jobs');
   const [isAvailable, setIsAvailable] = useState(true);
   const [toolModal, setToolModal] = useState({ open:false, edit:null });
@@ -54,16 +61,20 @@ export default function ProviderDashboard() {
       if (st.status==='fulfilled' && st.value.success) {
         const d = st.value.data;
         setIsAvailable(d.isAvailable);
-        setStats({
+        const newStats = {
           todayJobs: d.todayJobs || 0,
           weeklyEarnings: d.weeklyEarnings || 0,
           totalEarnings: d.totalEarnings || 0,
           rating: d.rating || 0,
           completionRate: d.completionRate || '0%',
           jobsCompleted: d.jobsCompleted || 0,
-        });
+        };
+        setStats(newStats);
+        try { sessionStorage.setItem('pd_stats', JSON.stringify(newStats)); } catch {}
       }
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error(e); } finally {
+      setIsLoading(false);
+    }
   };
 
    
@@ -138,6 +149,30 @@ export default function ProviderDashboard() {
 
     const handleNewRental = (data) => {
       toast('New tool rental request!', { icon: '🔧' });
+
+      // Play localized audio alert for tool rental
+      if ('speechSynthesis' in window) {
+        const currentLang = useLanguageStore.getState().language;
+        
+        let textToSpeak = 'You have a new tool rental request!';
+        let langCode = 'en-US';
+        
+        if (currentLang === 'hi') {
+          textToSpeak = 'Aapko ek naya tool rental mila hai!';
+          langCode = 'hi-IN';
+        }
+
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = langCode;
+        utterance.rate = 0.85;
+        
+        const voices = window.speechSynthesis.getVoices();
+        const voice = voices.find(v => v.lang.startsWith(langCode.split('-')[0]));
+        if (voice) utterance.voice = voice;
+
+        window.speechSynthesis.speak(utterance);
+      }
+
       fetchAll();
     };
 
@@ -359,7 +394,11 @@ export default function ProviderDashboard() {
                 </div>
                 <div>
                   <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{k.label}</p>
-                  <h3 className={`text-2xl sm:text-3xl font-extrabold font-headline leading-none ${k.color}`}>{k.value}</h3>
+                  {isLoading && !sessionStorage.getItem('pd_stats') ? (
+                    <div className="h-8 w-20 bg-slate-200 rounded-lg animate-pulse mt-1" />
+                  ) : (
+                    <h3 className={`text-2xl sm:text-3xl font-extrabold font-headline leading-none ${k.color}`}>{k.value}</h3>
+                  )}
                   {k.sub && <p className="text-[10px] text-slate-400 font-medium mt-1">{k.sub}</p>}
                 </div>
               </div>

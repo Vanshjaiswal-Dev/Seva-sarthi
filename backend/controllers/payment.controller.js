@@ -254,6 +254,15 @@ const createRentalAfterPayment = async (req, payload, razorpayOrderId, razorpayP
     metadata: { rentalId: rental._id },
   });
 
+  // Notify tool owner (provider)
+  await createAndPushNotification({
+    userId: tool.ownerId.toString(),
+    title: 'New Tool Rental',
+    message: `${req.user.name} has rented your "${tool.name}" for ${days} days. Payment of ₹${total} received.`,
+    type: 'rental',
+    metadata: { rentalId: rental._id },
+  });
+
   const io = getIO();
   if (io) {
     io.to(`user:${req.user._id.toString()}`).emit('new_rental', rental);

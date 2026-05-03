@@ -360,7 +360,24 @@ export default function BookingFlow() {
                   </div>
                   <div className="card p-6 md:p-8 space-y-6">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Service Address</label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest">Service Address</label>
+                        {currentUser?.address?.line1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const a = currentUser.address;
+                              const parts = [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean);
+                              setAddress(parts.join(', '));
+                              toast.success('Saved address applied!');
+                            }}
+                            className="text-xs font-bold text-brand hover:text-accent transition-colors flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">home</span>
+                            Use saved address
+                          </button>
+                        )}
+                      </div>
                       <textarea value={address} onChange={(e) => setAddress(e.target.value)} className="input-field min-h-[120px] resize-none" placeholder="e.g. 123 Prime Enclave, Block B, New Delhi" />
                     </div>
                     <div>

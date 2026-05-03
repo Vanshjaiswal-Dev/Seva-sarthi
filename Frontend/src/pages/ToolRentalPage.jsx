@@ -333,7 +333,32 @@ function CartDrawer({ tool, onClose, onConfirm }) {
 
               {/* Address */}
               <div>
-                <h4 className="font-black text-slate-900 mb-3">Delivery address</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-black text-slate-900">Delivery address</h4>
+                  {(() => {
+                    const savedAddr = useAuthStore.getState().currentUser?.address;
+                    if (!savedAddr?.line1) return null;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateDetails({
+                            addressLine1: savedAddr.line1 || '',
+                            addressLine2: savedAddr.line2 || '',
+                            city: savedAddr.city || '',
+                            pincode: savedAddr.pincode || '',
+                            landmark: savedAddr.landmark || '',
+                          });
+                          toast.success('Saved address applied!');
+                        }}
+                        className="text-xs font-bold text-teal-600 hover:text-teal-800 transition-colors flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">home</span>
+                        Use saved address
+                      </button>
+                    );
+                  })()}
+                </div>
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Address line 1</label>

@@ -303,6 +303,7 @@ const hi = {
   sd_electrical_works: 'विद्युत कार्य',
   sd_gardening_landscaping: 'बागवानी और भूनिर्माण',
   alert_new_job_request: 'आपको एक नया काम मिला है!',
+  alert_new_rental: 'आपको एक नया टूल रेंटल मिला है!',
 };
 
 export default hi;

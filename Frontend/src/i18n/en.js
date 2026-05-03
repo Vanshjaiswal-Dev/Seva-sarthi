@@ -303,6 +303,7 @@ const en = {
   sd_electrical_works: 'Electrical Works',
   sd_gardening_landscaping: 'Gardening & Landscaping',
   alert_new_job_request: 'You have a new job request!',
+  alert_new_rental: 'You have a new tool rental request!',
 };
 
 export default en;
