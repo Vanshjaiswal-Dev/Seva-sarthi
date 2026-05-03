@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars, react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -24,6 +24,15 @@ export default function ProviderAuthentication() {
   // --- LOGIN FIELDS ---
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+
+  // --- FORGOT PASSWORD STATE ---
+  const [forgotMode, setForgotMode] = useState(null); // null | 'email' | 'otp' | 'reset'
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotDevOtp, setForgotDevOtp] = useState('');
+  const [forgotResetToken, setForgotResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // --- SIGN UP WIZARD STATE ---
   const [step, setStep] = useState(1);
@@ -55,7 +64,7 @@ export default function ProviderAuthentication() {
   // Step 4: Primary Service
   const [primaryCategory, setPrimaryCategory] = useState('');
 
-  const { login, register, sendProviderOtp, verifyProviderOtp } = useAuthStore();
+  const { login, register, sendProviderOtp, verifyProviderOtp, forgotPassword, verifyOtp, resetPassword } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -91,6 +100,59 @@ export default function ProviderAuthentication() {
       useAuthStore.getState().logout();
     } else {
       setErrors({ global: useAuthStore.getState().error || 'Login failed' });
+    }
+  };
+
+  // --- FORGOT PASSWORD HANDLERS ---
+  const handleForgotSendOtp = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail) { setErrors({ global: 'Email is required' }); return; }
+    setIsLoading(true); setErrors({});
+    const res = await forgotPassword(forgotEmail);
+    setIsLoading(false);
+    if (res) {
+      setForgotMode('otp');
+      if (res.data?.devOtp) {
+        setForgotDevOtp(res.data.devOtp);
+        setForgotOtp(res.data.devOtp);
+        setErrors({ globalSuccess: 'Dev mode: SMTP not configured. Your OTP is shown below.' });
+      } else {
+        setForgotDevOtp('');
+        setErrors({ globalSuccess: 'OTP sent to your email address.' });
+      }
+    } else {
+      setErrors({ global: useAuthStore.getState().error || 'Failed to send OTP.' });
+    }
+  };
+
+  const handleForgotVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!forgotOtp || forgotOtp.length !== 6) { setErrors({ global: 'Enter a valid 6-digit OTP' }); return; }
+    setIsLoading(true); setErrors({});
+    const data = await verifyOtp(forgotEmail, forgotOtp);
+    setIsLoading(false);
+    if (data?.resetToken) {
+      setForgotResetToken(data.resetToken);
+      setForgotMode('reset');
+      setErrors({ globalSuccess: 'OTP verified! Set your new password.' });
+    } else {
+      setErrors({ global: useAuthStore.getState().error || 'Invalid OTP.' });
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) { setErrors({ global: 'Password must be at least 6 characters' }); return; }
+    if (newPassword !== confirmPassword) { setErrors({ global: 'Passwords do not match' }); return; }
+    setIsLoading(true); setErrors({});
+    const res = await resetPassword(forgotEmail, forgotResetToken, newPassword);
+    setIsLoading(false);
+    if (res) {
+      setForgotMode(null); setForgotDevOtp('');
+      setErrors({ globalSuccess: 'Password reset successfully! You can now log in.' });
+      setNewPassword(''); setConfirmPassword(''); setForgotOtp('');
+    } else {
+      setErrors({ global: useAuthStore.getState().error || 'Reset failed.' });
     }
   };
 
@@ -241,36 +303,115 @@ export default function ProviderAuthentication() {
           <AnimatePresence mode="wait">
             {!isSignUp ? (
               <motion.div key="login" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-surface rounded-3xl p-8 sm:p-10 shadow-premium border border-slate-200/60">
-                <div className="text-center mb-10">
-                  <h2 className="text-3xl font-extrabold text-brand font-headline tracking-tight mb-2">Provider Portal</h2>
-                  <p className="text-slate-500 font-medium">Log in to manage your bookings and services.</p>
-                </div>
 
-                {errors.global && <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold border border-red-100 flex items-center gap-2 mb-6"><span className="material-symbols-outlined">error</span>{errors.global}</div>}
-
-                <form onSubmit={handleLogin} className="space-y-5">
+                {/* ── Forgot Password Flow ── */}
+                {forgotMode ? (
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Email</label>
-                    <input type="email" required className="input-field" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} placeholder="name@example.com" />
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-end mb-1.5 ml-1">
-                      <label className="block text-sm font-bold text-slate-700">Password</label>
-                      <Link to="/auth?mode=forgot" className="text-xs font-bold text-brand hover:text-accent transition-colors">Forgot Password?</Link>
+                    <div className="text-center mb-8">
+                      <div className="w-14 h-14 bg-brand rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-sm">
+                        <span className="material-symbols-outlined text-surface text-3xl">lock_reset</span>
+                      </div>
+                      <h2 className="text-2xl font-extrabold text-brand font-headline tracking-tight mb-2">
+                        {forgotMode === 'email' ? 'Forgot Password?' : forgotMode === 'otp' ? 'Enter OTP' : 'Set New Password'}
+                      </h2>
+                      <p className="text-slate-500 font-medium text-sm">
+                        {forgotMode === 'email' ? "Enter your provider email to receive an OTP." : forgotMode === 'otp' ? "Check your email for the verification code." : "Create a strong new password."}
+                      </p>
                     </div>
-                    <input type="password" required className="input-field" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} placeholder="••••••••" />
+
+                    <AnimatePresence>
+                      {errors.global && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-semibold border border-red-100 flex items-center gap-2"><span className="material-symbols-outlined">error</span>{errors.global}</motion.div>}
+                      {errors.globalSuccess && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="mb-4 bg-emerald-50 text-emerald-600 px-4 py-3 rounded-xl text-sm font-semibold border border-emerald-100 flex items-center gap-2"><span className="material-symbols-outlined">check_circle</span>{errors.globalSuccess}</motion.div>}
+                    </AnimatePresence>
+
+                    {forgotMode === 'email' && (
+                      <form onSubmit={handleForgotSendOtp} className="space-y-5">
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Email</label>
+                          <input value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} className="input-field" placeholder="name@example.com" type="email" />
+                        </div>
+                        <button disabled={isLoading} className={`w-full btn-accent !py-4 flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-wait' : ''}`} type="submit">
+                          {isLoading ? <span className="material-symbols-outlined animate-spin">progress_activity</span> : <>Send OTP <span className="material-symbols-outlined text-xl">send</span></>}
+                        </button>
+                      </form>
+                    )}
+
+                    {forgotMode === 'otp' && (
+                      <form onSubmit={handleForgotVerifyOtp} className="space-y-5">
+                        {forgotDevOtp && (
+                          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 text-center">
+                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">⚠ Dev Mode — SMTP Not Configured</p>
+                            <p className="text-amber-800 font-bold text-sm">Your OTP:</p>
+                            <span className="text-3xl font-black tracking-[0.5em] text-amber-900 font-mono">{forgotDevOtp}</span>
+                          </div>
+                        )}
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">6-Digit OTP</label>
+                          <input value={forgotOtp} onChange={e => setForgotOtp(e.target.value.replace(/\D/g,'').slice(0,6))} className="input-field text-center text-2xl tracking-[0.5em] font-extrabold" placeholder="• • • • • •" maxLength={6} />
+                        </div>
+                        <button disabled={isLoading} className={`w-full btn-accent !py-4 flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-wait' : ''}`} type="submit">
+                          {isLoading ? <span className="material-symbols-outlined animate-spin">progress_activity</span> : <>Verify OTP <span className="material-symbols-outlined text-xl">verified</span></>}
+                        </button>
+                        <button type="button" onClick={() => { setForgotMode('email'); setForgotOtp(''); setForgotDevOtp(''); setErrors({}); }} className="w-full text-sm font-bold text-slate-500 hover:text-brand">Resend OTP</button>
+                      </form>
+                    )}
+
+                    {forgotMode === 'reset' && (
+                      <form onSubmit={handleResetPassword} className="space-y-5">
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">New Password</label>
+                          <input value={newPassword} onChange={e => setNewPassword(e.target.value)} className="input-field" placeholder="Min 6 characters" type="password" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Confirm Password</label>
+                          <input value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="input-field" placeholder="Re-enter password" type="password" />
+                        </div>
+                        <button disabled={isLoading} className={`w-full btn-accent !py-4 flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-wait' : ''}`} type="submit">
+                          {isLoading ? <span className="material-symbols-outlined animate-spin">progress_activity</span> : <>Reset Password <span className="material-symbols-outlined text-xl">lock_open</span></>}
+                        </button>
+                      </form>
+                    )}
+
+                    <div className="mt-6 text-center">
+                      <button type="button" onClick={() => { setForgotMode(null); setErrors({}); }} className="text-sm font-bold text-brand hover:text-accent-dark">← Back to Login</button>
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    {/* ── Normal Login Form ── */}
+                    <div className="text-center mb-10">
+                      <h2 className="text-3xl font-extrabold text-brand font-headline tracking-tight mb-2">Provider Portal</h2>
+                      <p className="text-slate-500 font-medium">Log in to manage your bookings and services.</p>
+                    </div>
 
-                  <button type="submit" disabled={isLoading} className="w-full btn-accent !py-4 text-lg mt-4 disabled:opacity-70 disabled:cursor-not-allowed">
-                    {isLoading ? <span className="material-symbols-outlined animate-spin">refresh</span> : 'Log In to Dashboard'}
-                  </button>
-                </form>
+                    {errors.global && <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold border border-red-100 flex items-center gap-2 mb-6"><span className="material-symbols-outlined">error</span>{errors.global}</div>}
+                    {errors.globalSuccess && <div className="bg-emerald-50 text-emerald-600 p-4 rounded-xl text-sm font-bold border border-emerald-100 flex items-center gap-2 mb-6"><span className="material-symbols-outlined">check_circle</span>{errors.globalSuccess}</div>}
 
-                <div className="mt-8 text-center pt-6 border-t border-slate-100">
-                  <p className="text-slate-500 font-medium">
-                    New to Seva Sarthi? <button onClick={() => { setIsSignUp(true); setErrors({}); }} className="text-brand font-extrabold hover:text-accent-dark hover:underline transition-all">Apply as Provider</button>
-                  </p>
-                </div>
+                    <form onSubmit={handleLogin} className="space-y-5">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Email</label>
+                        <input type="email" required className="input-field" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} placeholder="name@example.com" />
+                      </div>
+                      <div>
+                        <div className="flex justify-between items-end mb-1.5 ml-1">
+                          <label className="block text-sm font-bold text-slate-700">Password</label>
+                          <button type="button" onClick={() => { setForgotMode('email'); setForgotEmail(loginEmail); setErrors({}); }} className="text-xs font-bold text-brand hover:text-accent transition-colors">Forgot Password?</button>
+                        </div>
+                        <input type="password" required className="input-field" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} placeholder="••••••••" />
+                      </div>
+
+                      <button type="submit" disabled={isLoading} className="w-full btn-accent !py-4 text-lg mt-4 disabled:opacity-70 disabled:cursor-not-allowed">
+                        {isLoading ? <span className="material-symbols-outlined animate-spin">refresh</span> : 'Log In to Dashboard'}
+                      </button>
+                    </form>
+
+                    <div className="mt-8 text-center pt-6 border-t border-slate-100">
+                      <p className="text-slate-500 font-medium">
+                        New to Seva Sarthi? <button onClick={() => { setIsSignUp(true); setErrors({}); }} className="text-brand font-extrabold hover:text-accent-dark hover:underline transition-all">Apply as Provider</button>
+                      </p>
+                    </div>
+                  </>
+                )}
               </motion.div>
 
             ) : (
