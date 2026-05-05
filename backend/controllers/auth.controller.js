@@ -6,7 +6,6 @@ const asyncHandler = require('../utils/asyncHandler');
 const { OAuth2Client } = require('google-auth-library');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-const firebaseAdmin = require('../config/firebase');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '1013725732158-j906o5v3p573n670goh4l98d7p8h4e77.apps.googleusercontent.com');
 
 let transporter = null;
@@ -118,20 +117,15 @@ const register = asyncHandler(async (req, res) => {
       // Cleanup
       delete global._userOtpStore[email];
     } else if (signupMethod === 'phone') {
-      // For phone, otpToken is actually the Firebase ID token
-      if (!otpToken) throw new ApiError(400, 'Firebase ID token is missing.');
-      try {
-        const decodedToken = await firebaseAdmin.auth().verifyIdToken(otpToken);
-        const verifiedPhone = decodedToken.phone_number; // e.g. +919926930707
-        
-        // Ensure the phone number matches (remove +91 for comparison if needed, or exact match)
-        const localPhone = phone.startsWith('+') ? phone : '+91' + phone;
-        if (verifiedPhone !== localPhone) {
-          throw new ApiError(400, 'Verified phone number does not match the provided phone number.');
-        }
-      } catch (error) {
-        throw new ApiError(401, 'Invalid Firebase token: ' + error.message);
+      const stored = global._userOtpStore?.[phone];
+      if (!stored || !stored.verified) {
+        throw new ApiError(400, 'Please verify your phone number first.');
       }
+      if (otpToken !== stored.verifyToken) {
+        throw new ApiError(400, 'Invalid verification. Please verify again.');
+      }
+      // Cleanup
+      delete global._userOtpStore[phone];
     }
   }
 
@@ -678,50 +672,64 @@ const verifyProviderOtp = asyncHandler(async (req, res) => {
 
 // ─── USER SIGNUP OTP ──────────────────────────────────────────────────────
 
-// @desc    Send OTP for user signup (email only now)
+// @desc    Send OTP for user signup
 // @route   POST /api/auth/user/send-otp
 const sendUserOtp = asyncHandler(async (req, res) => {
-  const { type, email } = req.body;
+  const { type, email, phone } = req.body;
 
-  if (type !== 'email') throw new ApiError(400, 'Only email OTP is supported by this endpoint. Phone uses Firebase.');
-  if (!email) throw new ApiError(400, 'Email is required.');
-
-  const key = email.toLowerCase();
-
-  // Check if already registered
-  const existing = await User.findOne({ email: key });
-  if (existing) throw new ApiError(409, 'An account with this email already exists. Please login instead.');
+  let key;
+  if (type === 'email') {
+    if (!email) throw new ApiError(400, 'Email is required.');
+    key = email.toLowerCase();
+    const existing = await User.findOne({ email: key });
+    if (existing) throw new ApiError(409, 'An account with this email already exists. Please login instead.');
+  } else if (type === 'phone') {
+    if (!phone) throw new ApiError(400, 'Phone is required.');
+    key = phone.replace(/[\s\-+()]/g, '');
+    if (key.startsWith('91') && key.length > 10) key = key.slice(2);
+    const existing = await User.findOne({ phone: key });
+    if (existing) throw new ApiError(409, 'An account with this phone number already exists. Please login instead.');
+  } else {
+    throw new ApiError(400, 'Invalid type.');
+  }
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   if (!global._userOtpStore) global._userOtpStore = {};
   global._userOtpStore[key] = { otp, expires: Date.now() + 10 * 60 * 1000, attempts: 0, verified: false };
 
-  // Send via email
-  try {
-    const mailer = await getTransporter();
-    if (mailer) {
-      const smtpFrom = process.env.SMTP_FROM || `"Seva Sarthi" <${process.env.SMTP_USER || 'noreply@sevasarthi.in'}>`;
-      await mailer.sendMail({
-        from: smtpFrom, to: email,
-        subject: 'Verify Your Email - Seva Sarthi',
-        html: `<div style="font-family:sans-serif;max-width:400px;margin:auto;padding:30px;border:1px solid #e2e8f0;border-radius:16px;"><h2 style="color:#0F172A;">Welcome to Seva Sarthi!</h2><p>Your verification OTP is:</p><div style="background:#f8fafc;padding:20px;text-align:center;border-radius:12px;margin:20px 0;"><span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#0F172A;">${otp}</span></div><p style="color:#94a3b8;font-size:13px;">Valid for 10 minutes. Do not share this code.</p></div>`
-      });
-      return res.status(200).json(new ApiResponse(200, { sent: true, method: 'email' }, 'OTP sent to your email address.'));
-    }
-  } catch (err) { console.error('Email send error:', err.message); }
-  
-  // Fallback
-  console.log('📧 USER EMAIL OTP:', otp, 'for', email);
-  return res.status(200).json(new ApiResponse(200, { devOtp: otp, method: 'email' }, 'OTP sent (dev mode).'));
+  if (type === 'email') {
+    // Send via email
+    try {
+      const mailer = await getTransporter();
+      if (mailer) {
+        const smtpFrom = process.env.SMTP_FROM || `"Seva Sarthi" <${process.env.SMTP_USER || 'noreply@sevasarthi.in'}>`;
+        await mailer.sendMail({
+          from: smtpFrom, to: email,
+          subject: 'Verify Your Email - Seva Sarthi',
+          html: `<div style="font-family:sans-serif;max-width:400px;margin:auto;padding:30px;border:1px solid #e2e8f0;border-radius:16px;"><h2 style="color:#0F172A;">Welcome to Seva Sarthi!</h2><p>Your verification OTP is:</p><div style="background:#f8fafc;padding:20px;text-align:center;border-radius:12px;margin:20px 0;"><span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#0F172A;">${otp}</span></div><p style="color:#94a3b8;font-size:13px;">Valid for 10 minutes. Do not share this code.</p></div>`
+        });
+        return res.status(200).json(new ApiResponse(200, { sent: true, method: 'email', devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined }, 'OTP sent to your email address.'));
+      }
+    } catch (err) { console.error('Email send error:', err.message); }
+  }
+
+  // Fallback / Phone
+  console.log(`📱 USER ${type.toUpperCase()} OTP:`, otp, 'for', key);
+  return res.status(200).json(new ApiResponse(200, { devOtp: otp, method: type }, 'OTP generated successfully.'));
 });
 
-// @desc    Verify user signup OTP (email only now)
+// @desc    Verify user signup OTP
 // @route   POST /api/auth/user/verify-otp
 const verifyUserOtp = asyncHandler(async (req, res) => {
-  const { type, email, otp } = req.body;
-  if (type !== 'email') throw new ApiError(400, 'Only email OTP is supported here. Phone uses Firebase.');
+  const { type, email, phone, otp } = req.body;
   
-  const key = email?.toLowerCase();
+  let key;
+  if (type === 'email') key = email?.toLowerCase();
+  else if (type === 'phone') {
+    key = phone?.replace(/[\s\-+()]/g, '');
+    if (key?.startsWith('91') && key.length > 10) key = key.slice(2);
+  }
+  
   if (!key || !otp) throw new ApiError(400, 'Verification details are required.');
 
   const stored = global._userOtpStore?.[key];

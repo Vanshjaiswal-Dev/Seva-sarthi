@@ -6,8 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { validateEmail, validatePassword, validatePhone, validateName, validatePincode, validateCity, validateAddress, validateOtp, cleanPhone, isPhoneInput, digitsOnly } from '../lib/validators';
-import { auth } from '../lib/firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 
 export default function Authentication() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -135,43 +133,32 @@ export default function Authentication() {
 
   // --- SIGNUP OTP HANDLERS ---
   const handleSendSignupOtp = async () => {
+    let payloadEmailOrPhone = '';
     if (signupMethod === 'email') {
       const ev = validateEmail(email);
       if (!ev.valid) { setErrors({ email: ev.error }); return; }
-      setSignupOtpLoading(true); setErrors({});
-      const res = await sendUserOtp('email', email);
-      setSignupOtpLoading(false);
-      if (res) {
-        setSignupOtpSent(true);
-        if (res.data?.devOtp) { setSignupDevOtp(res.data.devOtp); setSignupOtp(res.data.devOtp); }
-        else setSignupDevOtp('');
-        setErrors({ globalSuccess: 'OTP sent to your email!' });
-      } else {
-        setErrors({ global: useAuthStore.getState().error || 'Failed to send OTP' });
-      }
+      payloadEmailOrPhone = email;
     } else {
-      // Mobile (Firebase)
       const pv = validatePhone(phone);
       if (!pv.valid) { setErrors({ phone: pv.error }); return; }
-      setSignupOtpLoading(true); setErrors({});
-      try {
-        if (!window.recaptchaVerifier) {
-          window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            'size': 'invisible'
-          });
-        }
-        const appVerifier = window.recaptchaVerifier;
-        const formattedPhone = phone.startsWith('+') ? phone : '+91' + cleanPhone(phone);
-        const confirmResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-        setConfirmationResult(confirmResult);
-        setSignupOtpSent(true);
-        setErrors({ globalSuccess: 'OTP sent to your mobile!' });
-      } catch (error) {
-        setErrors({ global: 'Failed to send SMS: ' + error.message });
-        if (window.recaptchaVerifier) { window.recaptchaVerifier.clear(); window.recaptchaVerifier = null; }
-      } finally {
-        setSignupOtpLoading(false);
+      payloadEmailOrPhone = cleanPhone(phone);
+    }
+    
+    setSignupOtpLoading(true); setErrors({});
+    const res = await sendUserOtp(signupMethod, payloadEmailOrPhone);
+    setSignupOtpLoading(false);
+    
+    if (res) {
+      setSignupOtpSent(true);
+      if (res.data?.devOtp) { 
+        setSignupDevOtp(res.data.devOtp); 
+        setSignupOtp(res.data.devOtp); 
+      } else {
+        setSignupDevOtp('');
       }
+      setErrors({ globalSuccess: `OTP sent to your ${signupMethod === 'email' ? 'email' : 'mobile'}!` });
+    } else {
+      setErrors({ global: useAuthStore.getState().error || 'Failed to send OTP' });
     }
   };
 
@@ -180,29 +167,16 @@ export default function Authentication() {
     if (!ov.valid) { setErrors({ signupOtp: ov.error }); return; }
     setSignupOtpLoading(true); setErrors({});
     
-    if (signupMethod === 'email') {
-      const data = await verifyUserOtp('email', email, signupOtp);
-      setSignupOtpLoading(false);
-      if (data?.verified) {
-        setSignupOtpVerified(true);
-        setSignupOtpToken(data.otpToken);
-        setErrors({ globalSuccess: 'Verified! Continue with your details.' });
-      } else {
-        setErrors({ global: useAuthStore.getState().error || 'Invalid OTP' });
-      }
+    const payloadEmailOrPhone = signupMethod === 'email' ? email : cleanPhone(phone);
+    const data = await verifyUserOtp(signupMethod, payloadEmailOrPhone, signupOtp);
+    setSignupOtpLoading(false);
+    
+    if (data?.verified) {
+      setSignupOtpVerified(true);
+      setSignupOtpToken(data.otpToken);
+      setErrors({ globalSuccess: 'Verified! Continue with your details.' });
     } else {
-      // Mobile (Firebase)
-      try {
-        const result = await confirmationResult.confirm(signupOtp);
-        const idToken = await result.user.getIdToken();
-        setSignupOtpVerified(true);
-        setSignupOtpToken(idToken); // Pass firebase token to backend as otpToken
-        setErrors({ globalSuccess: 'Verified! Continue with your details.' });
-      } catch (error) {
-        setErrors({ global: 'Invalid OTP: ' + error.message });
-      } finally {
-        setSignupOtpLoading(false);
-      }
+      setErrors({ global: useAuthStore.getState().error || 'Invalid OTP' });
     }
   };
 
@@ -573,7 +547,6 @@ export default function Authentication() {
               </button>
             </p>
           </div>
-          <div id="recaptcha-container"></div>
         </div>
       </motion.div>
     </div>
