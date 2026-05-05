@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { openRazorpayCheckout } from '../lib/razorpay';
+import { validateName, validatePhone, validateAddress, validatePincode, validateCity, validateAadhaar, validatePAN, cleanPhone, digitsOnly } from '../lib/validators';
 
 const RENTALS_STORAGE_KEY = 'sevaSarthi.rentals.v1';
 
@@ -101,16 +102,30 @@ function CartDrawer({ tool, onClose, onConfirm }) {
   const validateDetails = () => {
     const e = {};
 
-    if (!details.fullName.trim()) e.fullName = 'Required';
-    if (!/^[6-9]\d{9}$/.test(details.phone.trim())) e.phone = 'Enter a valid 10-digit mobile number';
+    const nv = validateName(details.fullName);
+    if (!nv.valid) e.fullName = nv.error;
+    const pv = validatePhone(details.phone);
+    if (!pv.valid) e.phone = pv.error;
 
-    if (!details.addressLine1.trim()) e.addressLine1 = 'Required';
-    if (!details.city.trim()) e.city = 'Required';
-    if (!/^\d{6}$/.test(details.pincode.trim())) e.pincode = 'Enter a valid 6-digit PIN code';
+    const av = validateAddress(details.addressLine1, true, 5);
+    if (!av.valid) e.addressLine1 = av.error;
+    const cv = validateCity(details.city);
+    if (!cv.valid) e.city = cv.error;
+    const pcv = validatePincode(details.pincode);
+    if (!pcv.valid) e.pincode = pcv.error;
 
     if (!details.deliveryDate) e.deliveryDate = 'Select a delivery date';
 
-    if (!details.idNumber.trim()) e.idNumber = 'Required';
+    // Validate ID based on type
+    if (details.idType === 'Aadhaar') {
+      const av2 = validateAadhaar(details.idNumber);
+      if (!av2.valid) e.idNumber = av2.error;
+    } else if (details.idType === 'PAN') {
+      const panv = validatePAN(details.idNumber);
+      if (!panv.valid) e.idNumber = panv.error;
+    } else if (!details.idNumber.trim()) {
+      e.idNumber = 'ID number is required';
+    }
 
     if (!details.agreeTerms) e.agreeTerms = 'You must accept terms';
     if (!details.agreeDepositHold) e.agreeDepositHold = 'Deposit acknowledgement required';

@@ -6,7 +6,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { OAuth2Client } = require('google-auth-library');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-
+const firebaseAdmin = require('../config/firebase');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '1013725732158-j906o5v3p573n670goh4l98d7p8h4e77.apps.googleusercontent.com');
 
 let transporter = null;
@@ -93,11 +93,46 @@ const cookieOptions = {
 // @route   POST /api/auth/register
 // @access  Public
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, phone, role, address } = req.body;
+  const { name, email, password, phone, role, address, signupMethod, otpToken } = req.body;
 
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new ApiError(409, 'An account with this email already exists.');
+  // Check for existing user by email or phone
+  if (email) {
+    const existingByEmail = await User.findOne({ email });
+    if (existingByEmail) throw new ApiError(409, 'An account with this email already exists.');
+  }
+  if (phone) {
+    const existingByPhone = await User.findOne({ phone });
+    if (existingByPhone) throw new ApiError(409, 'An account with this mobile number already exists.');
+  }
+
+  // For user signup (not provider), verify token
+  if (role !== 'provider' && signupMethod) {
+    if (signupMethod === 'email') {
+      const stored = global._userOtpStore?.[email];
+      if (!stored || !stored.verified) {
+        throw new ApiError(400, 'Please verify your email first.');
+      }
+      if (otpToken !== stored.verifyToken) {
+        throw new ApiError(400, 'Invalid verification. Please verify again.');
+      }
+      // Cleanup
+      delete global._userOtpStore[email];
+    } else if (signupMethod === 'phone') {
+      // For phone, otpToken is actually the Firebase ID token
+      if (!otpToken) throw new ApiError(400, 'Firebase ID token is missing.');
+      try {
+        const decodedToken = await firebaseAdmin.auth().verifyIdToken(otpToken);
+        const verifiedPhone = decodedToken.phone_number; // e.g. +919926930707
+        
+        // Ensure the phone number matches (remove +91 for comparison if needed, or exact match)
+        const localPhone = phone.startsWith('+') ? phone : '+91' + phone;
+        if (verifiedPhone !== localPhone) {
+          throw new ApiError(400, 'Verified phone number does not match the provided phone number.');
+        }
+      } catch (error) {
+        throw new ApiError(401, 'Invalid Firebase token: ' + error.message);
+      }
+    }
   }
 
   let dashboard = '/user/dashboard';
@@ -179,10 +214,27 @@ const register = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, phone, identifier, password } = req.body;
 
-  const user = await User.findOne({ email }).select('+password');
-  if (!user) throw new ApiError(401, 'Invalid credentials.');
+  // Support login via email, phone, or generic identifier
+  let loginId = email || phone || identifier || '';
+  loginId = loginId.trim();
+
+  if (!loginId) throw new ApiError(400, 'Email or mobile number is required.');
+
+  // Detect if it's a phone number or email
+  const isPhone = /^[6-9]\d{9}$/.test(loginId.replace(/[\s\-+()]/g, '').replace(/^(\+?91)/, ''));
+  let cleanedPhone = loginId.replace(/[\s\-+()]/g, '');
+  if (cleanedPhone.startsWith('+91')) cleanedPhone = cleanedPhone.slice(3);
+  else if (cleanedPhone.startsWith('91') && cleanedPhone.length > 10) cleanedPhone = cleanedPhone.slice(2);
+
+  let user;
+  if (isPhone) {
+    user = await User.findOne({ phone: cleanedPhone }).select('+password');
+  } else {
+    user = await User.findOne({ email: loginId.toLowerCase() }).select('+password');
+  }
+  if (!user) throw new ApiError(401, 'Invalid credentials. No account found with this ' + (isPhone ? 'mobile number' : 'email') + '.');
 
   const isMatch = await user.comparePassword(password);
   if (!isMatch) throw new ApiError(401, 'Invalid credentials.');
@@ -463,6 +515,9 @@ const resetPassword = asyncHandler(async (req, res) => {
   if (newPassword.length < 6) {
     throw new ApiError(400, 'Password must be at least 6 characters.');
   }
+  if (newPassword.length > 15) {
+    throw new ApiError(400, 'Password cannot exceed 15 characters.');
+  }
 
   const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
@@ -577,53 +632,115 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   );
 });
 
-// @desc    Send registration OTP to provider email (simulated)
+// @desc    Send registration OTP to provider email
 // @route   POST /api/auth/provider/send-otp
 // @access  Public
 const sendProviderOtp = asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) throw new ApiError(400, 'Email is required.');
 
-  // Generate 6-digit OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Store OTP temporarily - in production use Redis. Here we use a simple in-memory map.
   if (!global._providerOtpStore) global._providerOtpStore = {};
-  global._providerOtpStore[email] = {
-    otp,
-    expires: Date.now() + 10 * 60 * 1000,
-  };
+  global._providerOtpStore[email] = { otp, expires: Date.now() + 10 * 60 * 1000 };
 
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📱 PROVIDER REGISTRATION OTP:', otp);
-  console.log('📧 For:', email);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  // Send via email
+  try {
+    const mailer = await getTransporter();
+    if (mailer) {
+      const smtpFrom = process.env.SMTP_FROM || `"Seva Sarthi" <${process.env.SMTP_USER || 'noreply@sevasarthi.in'}>`;
+      await mailer.sendMail({
+        from: smtpFrom, to: email,
+        subject: 'Provider Registration OTP - Seva Sarthi',
+        html: `<div style="font-family:sans-serif;max-width:400px;margin:auto;padding:30px;border:1px solid #e2e8f0;border-radius:16px;"><h2 style="color:#0F172A;">Seva Sarthi</h2><p>Your provider registration OTP is:</p><div style="background:#f8fafc;padding:20px;text-align:center;border-radius:12px;margin:20px 0;"><span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#0F172A;">${otp}</span></div><p style="color:#94a3b8;font-size:13px;">Valid for 10 minutes. Do not share.</p></div>`
+      });
+      return res.status(200).json(new ApiResponse(200, { mailConfigured: true }, 'OTP sent to your email.'));
+    }
+  } catch (err) { console.error('Email send error:', err.message); }
 
-  res.status(200).json(
-    new ApiResponse(200, { devOtp: otp }, 'OTP sent successfully (dev mode).')
-  );
+  // Fallback: return in response for dev
+  console.log('📱 PROVIDER OTP:', otp, 'for', email);
+  res.status(200).json(new ApiResponse(200, { devOtp: otp }, 'OTP sent (dev mode).'));
 });
 
 // @desc    Verify provider registration OTP
-// @route   POST /api/auth/provider/verify-otp
-// @access  Public
 const verifyProviderOtp = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) throw new ApiError(400, 'Email and OTP are required.');
 
   const stored = global._providerOtpStore?.[email];
   if (!stored) throw new ApiError(400, 'No OTP found. Please request a new one.');
-  if (Date.now() > stored.expires) {
-    delete global._providerOtpStore[email];
-    throw new ApiError(400, 'OTP expired. Please request a new one.');
-  }
+  if (Date.now() > stored.expires) { delete global._providerOtpStore[email]; throw new ApiError(400, 'OTP expired.'); }
   if (stored.otp !== otp) throw new ApiError(400, 'Invalid OTP.');
-
   delete global._providerOtpStore[email];
+  res.status(200).json(new ApiResponse(200, { verified: true }, 'OTP verified.'));
+});
 
-  res.status(200).json(
-    new ApiResponse(200, { verified: true }, 'OTP verified successfully.')
-  );
+// ─── USER SIGNUP OTP ──────────────────────────────────────────────────────
+
+// @desc    Send OTP for user signup (email only now)
+// @route   POST /api/auth/user/send-otp
+const sendUserOtp = asyncHandler(async (req, res) => {
+  const { type, email } = req.body;
+
+  if (type !== 'email') throw new ApiError(400, 'Only email OTP is supported by this endpoint. Phone uses Firebase.');
+  if (!email) throw new ApiError(400, 'Email is required.');
+
+  const key = email.toLowerCase();
+
+  // Check if already registered
+  const existing = await User.findOne({ email: key });
+  if (existing) throw new ApiError(409, 'An account with this email already exists. Please login instead.');
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  if (!global._userOtpStore) global._userOtpStore = {};
+  global._userOtpStore[key] = { otp, expires: Date.now() + 10 * 60 * 1000, attempts: 0, verified: false };
+
+  // Send via email
+  try {
+    const mailer = await getTransporter();
+    if (mailer) {
+      const smtpFrom = process.env.SMTP_FROM || `"Seva Sarthi" <${process.env.SMTP_USER || 'noreply@sevasarthi.in'}>`;
+      await mailer.sendMail({
+        from: smtpFrom, to: email,
+        subject: 'Verify Your Email - Seva Sarthi',
+        html: `<div style="font-family:sans-serif;max-width:400px;margin:auto;padding:30px;border:1px solid #e2e8f0;border-radius:16px;"><h2 style="color:#0F172A;">Welcome to Seva Sarthi!</h2><p>Your verification OTP is:</p><div style="background:#f8fafc;padding:20px;text-align:center;border-radius:12px;margin:20px 0;"><span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#0F172A;">${otp}</span></div><p style="color:#94a3b8;font-size:13px;">Valid for 10 minutes. Do not share this code.</p></div>`
+      });
+      return res.status(200).json(new ApiResponse(200, { sent: true, method: 'email' }, 'OTP sent to your email address.'));
+    }
+  } catch (err) { console.error('Email send error:', err.message); }
+  
+  // Fallback
+  console.log('📧 USER EMAIL OTP:', otp, 'for', email);
+  return res.status(200).json(new ApiResponse(200, { devOtp: otp, method: 'email' }, 'OTP sent (dev mode).'));
+});
+
+// @desc    Verify user signup OTP (email only now)
+// @route   POST /api/auth/user/verify-otp
+const verifyUserOtp = asyncHandler(async (req, res) => {
+  const { type, email, otp } = req.body;
+  if (type !== 'email') throw new ApiError(400, 'Only email OTP is supported here. Phone uses Firebase.');
+  
+  const key = email?.toLowerCase();
+  if (!key || !otp) throw new ApiError(400, 'Verification details are required.');
+
+  const stored = global._userOtpStore?.[key];
+  if (!stored) throw new ApiError(400, 'No OTP found. Please request a new one.');
+  if (Date.now() > stored.expires) { delete global._userOtpStore[key]; throw new ApiError(400, 'OTP expired. Please request a new one.'); }
+  if (stored.attempts >= 5) { delete global._userOtpStore[key]; throw new ApiError(429, 'Too many attempts. Please request a new OTP.'); }
+
+  if (stored.otp !== otp) {
+    stored.attempts += 1;
+    throw new ApiError(400, `Invalid OTP. ${5 - stored.attempts} attempts remaining.`);
+  }
+
+  // Mark as verified and generate a verify token
+  const verifyToken = crypto.randomBytes(16).toString('hex');
+  stored.verified = true;
+  stored.verifyToken = verifyToken;
+  stored.expires = Date.now() + 15 * 60 * 1000; // Extend for registration
+
+  res.status(200).json(new ApiResponse(200, { verified: true, otpToken: verifyToken }, 'Verification successful!'));
 });
 
 module.exports = {
@@ -639,5 +756,6 @@ module.exports = {
   resetPassword,
   sendProviderOtp,
   verifyProviderOtp,
+  sendUserOtp,
+  verifyUserOtp,
 };
-

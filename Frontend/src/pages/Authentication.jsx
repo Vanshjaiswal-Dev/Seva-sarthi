@@ -1,21 +1,39 @@
 /* eslint-disable no-unused-vars, react-hooks/set-state-in-effect */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { validateEmail, validatePassword, validatePhone, validateName, validatePincode, validateCity, validateAddress, validateOtp, cleanPhone, isPhoneInput, digitsOnly } from '../lib/validators';
+import { auth } from '../lib/firebase';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 
 export default function Authentication() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [passwordChecks, setPasswordChecks] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Signup method: 'email' or 'phone'
+  const [signupMethod, setSignupMethod] = useState('email');
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  // OTP verification for signup
+  const [signupOtp, setSignupOtp] = useState('');
+  const [signupOtpSent, setSignupOtpSent] = useState(false);
+  const [signupOtpVerified, setSignupOtpVerified] = useState(false);
+  const [signupOtpToken, setSignupOtpToken] = useState('');
+  const [signupOtpLoading, setSignupOtpLoading] = useState(false);
+  const [signupDevOtp, setSignupDevOtp] = useState('');
+  const [emailSuggestion, setEmailSuggestion] = useState('');
 
   // Wizard state for sign up
   const [signUpStep, setSignUpStep] = useState(1);
 
   // Login/User signup fields
+  const [loginIdentifier, setLoginIdentifier] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -29,7 +47,7 @@ export default function Authentication() {
   const [landmark, setLandmark] = useState('');
 
   // Forgot password
-  const [forgotMode, setForgotMode] = useState(null); // null | 'email' | 'otp' | 'reset'
+  const [forgotMode, setForgotMode] = useState(null);
   const [forgotEmail, setForgotEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [resetToken, setResetToken] = useState('');
@@ -37,7 +55,7 @@ export default function Authentication() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [devOtp, setDevOtp] = useState('');
 
-  const { login, register, googleLogin, forgotPassword, verifyOtp, resetPassword } = useAuthStore();
+  const { login, register, googleLogin, forgotPassword, verifyOtp, resetPassword, sendUserOtp, verifyUserOtp } = useAuthStore();
   const { t } = useLanguageStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,18 +67,25 @@ export default function Authentication() {
 
   useEffect(() => {
     if (password) {
-      let s = 0;
-      if (password.length >= 8) s += 25;
-      if (/[A-Z]/.test(password)) s += 25;
-      if (/[0-9]/.test(password)) s += 25;
-      if (/[^A-Za-z0-9]/.test(password)) s += 25;
-      setPasswordStrength(s);
+      const result = validatePassword(password);
+      setPasswordStrength(result.strength);
+      setPasswordChecks(result.checks || {});
     } else {
       setPasswordStrength(0);
+      setPasswordChecks({});
     }
   }, [password]);
 
-  const getStrengthColor = () => passwordStrength < 50 ? 'bg-red-400' : passwordStrength < 75 ? 'bg-amber-400' : 'bg-emerald-500';
+  // Real-time email validation with suggestion
+  useEffect(() => {
+    if (email && isSignUp) {
+      const result = validateEmail(email);
+      if (result.suggestion) setEmailSuggestion(result.suggestion);
+      else setEmailSuggestion('');
+    } else setEmailSuggestion('');
+  }, [email, isSignUp]);
+
+  const getStrengthColor = () => passwordStrength < 40 ? 'bg-red-400' : passwordStrength < 70 ? 'bg-amber-400' : 'bg-emerald-500';
 
   // --- FORGOT PASSWORD HANDLERS ---
   const handleForgotSendOtp = async (e) => {
@@ -108,15 +133,99 @@ export default function Authentication() {
     else setErrors({ global: useAuthStore.getState().error || 'Reset failed. Please try again.' });
   };
 
+  // --- SIGNUP OTP HANDLERS ---
+  const handleSendSignupOtp = async () => {
+    if (signupMethod === 'email') {
+      const ev = validateEmail(email);
+      if (!ev.valid) { setErrors({ email: ev.error }); return; }
+      setSignupOtpLoading(true); setErrors({});
+      const res = await sendUserOtp('email', email);
+      setSignupOtpLoading(false);
+      if (res) {
+        setSignupOtpSent(true);
+        if (res.data?.devOtp) { setSignupDevOtp(res.data.devOtp); setSignupOtp(res.data.devOtp); }
+        else setSignupDevOtp('');
+        setErrors({ globalSuccess: 'OTP sent to your email!' });
+      } else {
+        setErrors({ global: useAuthStore.getState().error || 'Failed to send OTP' });
+      }
+    } else {
+      // Mobile (Firebase)
+      const pv = validatePhone(phone);
+      if (!pv.valid) { setErrors({ phone: pv.error }); return; }
+      setSignupOtpLoading(true); setErrors({});
+      try {
+        if (!window.recaptchaVerifier) {
+          window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible'
+          });
+        }
+        const appVerifier = window.recaptchaVerifier;
+        const formattedPhone = phone.startsWith('+') ? phone : '+91' + cleanPhone(phone);
+        const confirmResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+        setConfirmationResult(confirmResult);
+        setSignupOtpSent(true);
+        setErrors({ globalSuccess: 'OTP sent to your mobile!' });
+      } catch (error) {
+        setErrors({ global: 'Failed to send SMS: ' + error.message });
+        if (window.recaptchaVerifier) { window.recaptchaVerifier.clear(); window.recaptchaVerifier = null; }
+      } finally {
+        setSignupOtpLoading(false);
+      }
+    }
+  };
+
+  const handleVerifySignupOtp = async () => {
+    const ov = validateOtp(signupOtp);
+    if (!ov.valid) { setErrors({ signupOtp: ov.error }); return; }
+    setSignupOtpLoading(true); setErrors({});
+    
+    if (signupMethod === 'email') {
+      const data = await verifyUserOtp('email', email, signupOtp);
+      setSignupOtpLoading(false);
+      if (data?.verified) {
+        setSignupOtpVerified(true);
+        setSignupOtpToken(data.otpToken);
+        setErrors({ globalSuccess: 'Verified! Continue with your details.' });
+      } else {
+        setErrors({ global: useAuthStore.getState().error || 'Invalid OTP' });
+      }
+    } else {
+      // Mobile (Firebase)
+      try {
+        const result = await confirmationResult.confirm(signupOtp);
+        const idToken = await result.user.getIdToken();
+        setSignupOtpVerified(true);
+        setSignupOtpToken(idToken); // Pass firebase token to backend as otpToken
+        setErrors({ globalSuccess: 'Verified! Continue with your details.' });
+      } catch (error) {
+        setErrors({ global: 'Invalid OTP: ' + error.message });
+      } finally {
+        setSignupOtpLoading(false);
+      }
+    }
+  };
+
   // --- WIZARD VALIDATION ---
   const validateStep1 = () => {
     const errs = {};
-    if (!name) errs.name = 'Name is required';
-    if (!email) errs.email = 'Email is required';
-    if (!phone) errs.phone = 'Mobile number is required';
-    else if (!/^[6-9]\d{9}$/.test(phone)) errs.phone = 'Enter a valid 10-digit number';
-    if (!password) errs.password = 'Password is required';
-    else if (password.length < 6) errs.password = 'Password must be at least 6 characters';
+    const nv = validateName(name);
+    if (!nv.valid) errs.name = nv.error;
+    
+    if (signupMethod === 'email') {
+      const ev = validateEmail(email);
+      if (!ev.valid) errs.email = ev.error;
+      if (phone) { const pv = validatePhone(phone); if (!pv.valid) errs.phone = pv.error; }
+    } else {
+      const pv = validatePhone(phone);
+      if (!pv.valid) errs.phone = pv.error;
+      if (email) { const ev = validateEmail(email); if (!ev.valid) errs.email = ev.error; }
+    }
+    
+    const pwv = validatePassword(password);
+    if (!pwv.valid) errs.password = pwv.error;
+
+    if (!signupOtpVerified) errs.global = 'Please verify your ' + (signupMethod === 'email' ? 'email' : 'mobile number') + ' first';
     
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -124,79 +233,51 @@ export default function Authentication() {
 
   const validateStep2 = () => {
     const errs = {};
-    if (!line1) errs.line1 = 'Address line 1 is required';
-    if (!city) errs.city = 'City is required';
-    if (!pincode) errs.pincode = 'Pincode is required';
-    else if (!/^\d{6}$/.test(pincode)) errs.pincode = 'Enter a valid 6-digit pincode';
-    
+    const av = validateAddress(line1, true, 5);
+    if (!av.valid) errs.line1 = av.error;
+    const cv = validateCity(city);
+    if (!cv.valid) errs.city = cv.error;
+    const pv = validatePincode(pincode);
+    if (!pv.valid) errs.pincode = pv.error;
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // --- LOGIN / SIGNUP ---
   const handleNextStep = () => {
-    if (validateStep1()) {
-      setSignUpStep(2);
-      setErrors({});
-    }
+    if (validateStep1()) { setSignUpStep(2); setErrors({}); }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (isSignUp) {
       if (!validateStep2()) return;
       setIsLoading(true); setErrors({});
-      
       const payload = {
-        role: 'user',
-        name,
-        email,
-        password,
-        phone,
-        address: {
-          line1,
-          line2,
-          city,
-          pincode,
-          landmark
-        }
+        role: 'user', name, password, phone: cleanPhone(phone),
+        email: signupMethod === 'email' ? email : (email || undefined),
+        signupMethod, otpToken: signupOtpToken,
+        address: { line1, line2, city, pincode, landmark },
       };
-
       const user = await register(payload);
       setIsLoading(false);
-      
-      if (user) { 
-        setIsSignUp(false); 
-        setSignUpStep(1);
-        setPassword(''); 
-        setErrors({ globalSuccess: `Account created for ${name}. Please log in.` }); 
-      }
-      else { 
-        setErrors({ global: useAuthStore.getState().error || 'Registration failed.' }); 
-      }
+      if (user) {
+        setIsSignUp(false); setSignUpStep(1); setPassword('');
+        setSignupOtpVerified(false); setSignupOtpSent(false); setSignupOtp(''); setSignupOtpToken('');
+        setErrors({ globalSuccess: `Account created for ${name}! Please log in.` });
+      } else setErrors({ global: useAuthStore.getState().error || 'Registration failed.' });
       return;
     }
-
     // Login flow
-    const errs = {};
-    if (!email) errs.email = 'Email is required';
-    if (!password) errs.password = 'Password is required';
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-
+    const id = loginIdentifier.trim();
+    if (!id) { setErrors({ loginId: 'Email or mobile number is required' }); return; }
+    if (!password) { setErrors({ password: 'Password is required' }); return; }
     setIsLoading(true); setErrors({});
-    const user = await login(email, password);
+    const user = await login(id, password);
     setIsLoading(false);
-
     if (user) {
-      if (user.role === 'provider') { 
-        setErrors({ global: 'This is a provider account. Please use the Provider Login page.' }); 
-        return; 
-      }
+      if (user.role === 'provider') { setErrors({ global: 'This is a provider account. Please use the Provider Login page.' }); return; }
       navigate(user.role === 'admin' ? '/admin/dashboard' : `/${user.role}/dashboard`);
-    } else { 
-      setErrors({ global: useAuthStore.getState().error || 'Invalid credentials.' }); 
-    }
+    } else setErrors({ global: useAuthStore.getState().error || 'Invalid credentials.' });
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
@@ -320,16 +401,21 @@ export default function Authentication() {
 
             {!isSignUp && (
               <>
-                <div><label className={labelCls} htmlFor="email-input">{t('auth_email')}</label>
-                  <input value={email} onChange={e => setEmail(e.target.value)} id="email-input" className={inputCls} placeholder="e.g. user@demo.com" type="email" />
-                  {errors.email && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.email}</p>}
+                <div><label className={labelCls} htmlFor="login-input">Email or Mobile Number</label>
+                  <input value={loginIdentifier} onChange={e => setLoginIdentifier(e.target.value)} id="login-input" className={inputCls} placeholder="e.g. user@gmail.com or 9876543210" type="text" autoComplete="username" />
+                  {errors.loginId && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.loginId}</p>}
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className={`${labelCls} !mb-0`} htmlFor="password-input">{t('auth_password')}</label>
-                    <button type="button" onClick={() => { setForgotMode('email'); setForgotEmail(email); setErrors({}); }} className="text-xs font-bold text-accent-dark hover:text-accent transition-colors">{t('auth_forgot')}</button>
+                    <button type="button" onClick={() => { setForgotMode('email'); setForgotEmail(loginIdentifier); setErrors({}); }} className="text-xs font-bold text-accent-dark hover:text-accent transition-colors">{t('auth_forgot')}</button>
                   </div>
-                  <input value={password} onChange={e => setPassword(e.target.value)} id="password-input" className={inputCls} placeholder="••••••••" type="password" />
+                  <div className="relative">
+                    <input value={password} onChange={e => setPassword(e.target.value)} id="password-input" className={`${inputCls} !pr-12`} placeholder="••••••••" type={showPassword ? 'text' : 'password'} maxLength={15} />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <span className="material-symbols-outlined text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                  </div>
                   {errors.password && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.password}</p>}
                 </div>
                 <button disabled={isLoading} className={`w-full btn-accent !py-4 mt-4 flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-wait' : ''}`} type="submit">
@@ -340,32 +426,82 @@ export default function Authentication() {
 
             {isSignUp && signUpStep === 1 && (
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Sign Up Method Toggle */}
+                <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
+                  <button type="button" onClick={() => { setSignupMethod('email'); setSignupOtpSent(false); setSignupOtpVerified(false); setSignupOtp(''); setErrors({}); }} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${signupMethod === 'email' ? 'bg-white text-brand shadow-sm' : 'text-slate-500'}`}>
+                    <span className="material-symbols-outlined text-lg">email</span> Email
+                  </button>
+                  <button type="button" onClick={() => { setSignupMethod('phone'); setSignupOtpSent(false); setSignupOtpVerified(false); setSignupOtp(''); setErrors({}); }} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${signupMethod === 'phone' ? 'bg-white text-brand shadow-sm' : 'text-slate-500'}`}>
+                    <span className="material-symbols-outlined text-lg">phone_android</span> Mobile
+                  </button>
+                </div>
+
+                <div>
+                  <label className={labelCls}>{t('auth_full_name')}</label>
+                  <input value={name} onChange={e => setName(e.target.value)} className={inputCls} placeholder="e.g. Rahul Sharma" type="text" />
+                  {errors.name && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.name}</p>}
+                </div>
+
+                {signupMethod === 'email' ? (
                   <div>
-                    <label className={labelCls} htmlFor="name-input">{t('auth_full_name')}</label>
-                    <input value={name} onChange={e => setName(e.target.value)} id="name-input" className={inputCls} placeholder="e.g. John Doe" type="text" />
-                    {errors.name && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.name}</p>}
+                    <label className={labelCls}>Email Address *</label>
+                    <div className="flex gap-2">
+                      <input value={email} onChange={e => setEmail(e.target.value)} className={`${inputCls} flex-1`} placeholder="e.g. user@gmail.com" type="email" disabled={signupOtpVerified} />
+                      {!signupOtpVerified && <button type="button" onClick={handleSendSignupOtp} disabled={signupOtpLoading || !email} className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold whitespace-nowrap hover:bg-brand/90 transition disabled:opacity-50">{signupOtpLoading ? '...' : signupOtpSent ? 'Resend' : 'Send OTP'}</button>}
+                      {signupOtpVerified && <span className="flex items-center text-emerald-500"><span className="material-symbols-outlined" style={{fontVariationSettings:"'FILL' 1"}}>verified</span></span>}
+                    </div>
+                    {emailSuggestion && <button type="button" onClick={() => { setEmail(emailSuggestion); setEmailSuggestion(''); }} className="mt-1.5 text-xs font-bold text-blue-600 hover:text-blue-800">Did you mean {emailSuggestion}?</button>}
+                    {errors.email && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.email}</p>}
                   </div>
+                ) : (
                   <div>
-                    <label className={labelCls}>Mobile Number</label>
-                    <input value={phone} onChange={e => setPhone(e.target.value)} className={inputCls} placeholder="10-digit number" type="tel" maxLength="10" />
+                    <label className={labelCls}>Mobile Number *</label>
+                    <div className="flex gap-2">
+                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm font-bold text-slate-500">+91</div>
+                      <input value={phone} onChange={e => setPhone(cleanPhone(e.target.value))} className={`${inputCls} flex-1`} placeholder="9876543210" type="tel" maxLength={10} inputMode="numeric" disabled={signupOtpVerified} />
+                      {!signupOtpVerified && <button type="button" onClick={handleSendSignupOtp} disabled={signupOtpLoading || !phone} className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold whitespace-nowrap hover:bg-brand/90 transition disabled:opacity-50">{signupOtpLoading ? '...' : signupOtpSent ? 'Resend' : 'Send OTP'}</button>}
+                      {signupOtpVerified && <span className="flex items-center text-emerald-500"><span className="material-symbols-outlined" style={{fontVariationSettings:"'FILL' 1"}}>verified</span></span>}
+                    </div>
                     {errors.phone && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.phone}</p>}
                   </div>
-                </div>
+                )}
+
+                {signupOtpSent && !signupOtpVerified && (
+                  <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} className="space-y-3">
+                    {signupDevOtp && (<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center"><p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Dev Mode OTP</p><span className="text-2xl font-black tracking-[0.4em] text-amber-900 font-mono">{signupDevOtp}</span></div>)}
+                    <div>
+                      <label className={labelCls}>Enter 6-digit OTP</label>
+                      <div className="flex gap-2">
+                        <input value={signupOtp} onChange={e => setSignupOtp(digitsOnly(e.target.value).slice(0,6))} className={`${inputCls} flex-1 text-center text-xl tracking-[0.4em] font-extrabold`} placeholder="• • • • • •" maxLength={6} inputMode="numeric" />
+                        <button type="button" onClick={handleVerifySignupOtp} disabled={signupOtpLoading || signupOtp.length !== 6} className="px-5 py-2 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600 transition disabled:opacity-50">{signupOtpLoading ? '...' : 'Verify'}</button>
+                      </div>
+                      {errors.signupOtp && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.signupOtp}</p>}
+                    </div>
+                  </motion.div>
+                )}
+
+                {signupMethod === 'email' ? (
+                  <div><label className={labelCls}>Mobile Number (Optional)</label><input value={phone} onChange={e => setPhone(cleanPhone(e.target.value))} className={inputCls} placeholder="10-digit number" type="tel" maxLength={10} inputMode="numeric" />{errors.phone && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.phone}</p>}</div>
+                ) : (
+                  <div><label className={labelCls}>Email (Optional)</label><input value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="e.g. user@gmail.com" type="email" />{emailSuggestion && <button type="button" onClick={() => { setEmail(emailSuggestion); setEmailSuggestion(''); }} className="mt-1.5 text-xs font-bold text-blue-600">Did you mean {emailSuggestion}?</button>}{errors.email && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.email}</p>}</div>
+                )}
 
                 <div>
-                  <label className={labelCls} htmlFor="email-input">{t('auth_email')}</label>
-                  <input value={email} onChange={e => setEmail(e.target.value)} id="email-input" className={inputCls} placeholder="e.g. user@demo.com" type="email" />
-                  {errors.email && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.email}</p>}
-                </div>
-
-                <div>
-                  <label className={labelCls} htmlFor="password-input">{t('auth_password')}</label>
-                  <input value={password} onChange={e => setPassword(e.target.value)} id="password-input" className={inputCls} placeholder="••••••••" type="password" />
+                  <label className={labelCls}>{t('auth_password')} (6-15 chars)</label>
+                  <div className="relative">
+                    <input value={password} onChange={e => setPassword(e.target.value.slice(0,15))} className={`${inputCls} !pr-12`} placeholder="6-15 characters" type={showPassword ? 'text' : 'password'} maxLength={15} />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><span className="material-symbols-outlined text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span></button>
+                  </div>
                   {password.length > 0 && (
-                    <div className="mt-3">
+                    <div className="mt-3 space-y-2">
                       <div className="flex gap-1 h-1.5 rounded-full overflow-hidden bg-slate-100"><div className={`h-full transition-all duration-300 ${getStrengthColor()}`} style={{ width: `${passwordStrength}%` }} /></div>
-                      <p className="mt-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">{passwordStrength < 50 ? t('auth_weak') : passwordStrength < 75 ? t('auth_good') : t('auth_strong')}</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {[['minLength','6+ characters'],['maxLength','≤ 15 characters'],['hasUppercase','Uppercase (A-Z)'],['hasLowercase','Lowercase (a-z)'],['hasNumber','Number (0-9)'],['hasSpecial','Special (!@#$)']].map(([key, label]) => (
+                          <div key={key} className={`flex items-center gap-1 text-[10px] font-bold ${passwordChecks[key] ? 'text-emerald-500' : 'text-slate-400'}`}>
+                            <span className="material-symbols-outlined text-[14px]" style={{fontVariationSettings:"'FILL' 1"}}>{passwordChecks[key] ? 'check_circle' : 'radio_button_unchecked'}</span>{label}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                   {errors.password && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.password}</p>}
@@ -432,11 +568,12 @@ export default function Authentication() {
           <div className="mt-8 text-center pt-6 border-t border-slate-100">
             <p className="text-sm font-medium text-slate-500">
               {isSignUp ? t('auth_already_account') + ' ' : t('auth_no_account') + ' '}
-              <button type="button" onClick={() => { setIsSignUp(!isSignUp); setSignUpStep(1); setErrors({}); setPassword(''); }} className="text-brand font-bold hover:text-accent-dark transition-colors ml-1">
+              <button type="button" onClick={() => { setIsSignUp(!isSignUp); setSignUpStep(1); setErrors({}); setPassword(''); setSignupOtpSent(false); setSignupOtpVerified(false); setSignupOtp(''); setSignupOtpToken(''); setEmailSuggestion(''); }} className="text-brand font-bold hover:text-accent-dark transition-colors ml-1">
                 {isSignUp ? t('auth_sign_in_link') : t('auth_sign_up')}
               </button>
             </p>
           </div>
+          <div id="recaptcha-container"></div>
         </div>
       </motion.div>
     </div>

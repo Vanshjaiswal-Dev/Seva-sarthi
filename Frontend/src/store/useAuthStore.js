@@ -14,10 +14,10 @@ export const useAuthStore = create(
 
       setProviderStatus: (status) => set({ providerStatus: status }),
 
-      login: async (email, password) => {
+      login: async (identifier, password) => {
         set({ authLoading: true, error: null });
         try {
-          const response = await api.post('/auth/login', { email, password });
+          const response = await api.post('/auth/login', { identifier, password });
           if (response.success && response.data) {
             set({
               currentUser: response.data.user,
@@ -99,6 +99,37 @@ export const useAuthStore = create(
         set({ authLoading: true, error: null });
         try {
           const response = await api.post('/auth/provider/verify-otp', { email, otp });
+          set({ authLoading: false });
+          return response.data;
+        } catch (err) {
+          set({ error: err.response?.data?.message || 'Invalid OTP', authLoading: false });
+          return null;
+        }
+      },
+
+      // User signup OTP
+      sendUserOtp: async (type, emailOrPhone) => {
+        set({ authLoading: true, error: null });
+        try {
+          const payload = { type };
+          if (type === 'email') payload.email = emailOrPhone;
+          else payload.phone = emailOrPhone;
+          const response = await api.post('/auth/user/send-otp', payload);
+          set({ authLoading: false });
+          return response;
+        } catch (err) {
+          set({ error: err.response?.data?.message || 'Failed to send OTP', authLoading: false });
+          return null;
+        }
+      },
+
+      verifyUserOtp: async (type, emailOrPhone, otp) => {
+        set({ authLoading: true, error: null });
+        try {
+          const payload = { type, otp };
+          if (type === 'email') payload.email = emailOrPhone;
+          else payload.phone = emailOrPhone;
+          const response = await api.post('/auth/user/verify-otp', payload);
           set({ authLoading: false });
           return response.data;
         } catch (err) {

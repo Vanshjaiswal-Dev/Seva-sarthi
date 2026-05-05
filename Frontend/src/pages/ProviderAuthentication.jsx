@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { validateEmail, validatePassword, validatePhone, validateName, validatePincode, validateCity, validateAddress, cleanPhone, digitsOnly } from '../lib/validators';
 
 const SERVICE_CATEGORIES = [
   { id: 'Home Maintenance', icon: 'home_repair_service' },
@@ -69,18 +70,12 @@ export default function ProviderAuthentication() {
 
   useEffect(() => {
     if (password) {
-      let s = 0;
-      if (password.length >= 8) s += 25;
-      if (/[A-Z]/.test(password)) s += 25;
-      if (/[0-9]/.test(password)) s += 25;
-      if (/[^A-Za-z0-9]/.test(password)) s += 25;
-      setPasswordStrength(s);
-    } else {
-      setPasswordStrength(0);
-    }
+      const result = validatePassword(password);
+      setPasswordStrength(result.strength);
+    } else setPasswordStrength(0);
   }, [password]);
 
-  const getStrengthColor = () => passwordStrength < 50 ? 'bg-red-400' : passwordStrength < 75 ? 'bg-amber-400' : 'bg-emerald-500';
+  const getStrengthColor = () => passwordStrength < 40 ? 'bg-red-400' : passwordStrength < 70 ? 'bg-amber-400' : 'bg-emerald-500';
 
   // --- LOGIN HANDLER ---
   const handleLogin = async (e) => {
@@ -158,7 +153,9 @@ export default function ProviderAuthentication() {
 
   // --- WIZARD HANDLERS ---
   const handleSendOtp = async () => {
-    if (!email || !/\S+@\S+\.\S+/.test(email)) { toast.error("Valid email required"); return; }
+    if (!email) { toast.error("Email required"); return; }
+    const ev = validateEmail(email);
+    if (!ev.valid) { toast.error(ev.error); return; }
     setIsLoading(true);
     const res = await sendProviderOtp(email);
     setIsLoading(false);
@@ -195,23 +192,29 @@ export default function ProviderAuthentication() {
   const validateStep = (currentStep) => {
     let errs = {};
     if (currentStep === 1) {
-      if (!name) errs.name = "Name is required";
-      if (!phone || phone.length !== 10) errs.phone = "10-digit phone required";
-      if (!password || password.length < 6) errs.password = "Password must be 6+ chars";
-      if (!otpVerified) errs.otp = "Please verify email first";
+      const nv = validateName(name);
+      if (!nv.valid) errs.name = nv.error;
+      const pv = validatePhone(phone);
+      if (!pv.valid) errs.phone = pv.error;
+      const pwv = validatePassword(password);
+      if (!pwv.valid) errs.password = pwv.error;
+      if (!otpVerified) errs.otp = 'Please verify email first';
     }
     if (currentStep === 2) {
-      if (businessType !== 'individual' && !businessName) errs.businessName = "Business name is required";
-      if (!city) errs.city = "City is required";
-      if (!fullAddress) errs.fullAddress = "Full address is required";
-      if (!pincode || pincode.length !== 6) errs.pincode = "6-digit pincode required";
+      if (businessType !== 'individual' && !businessName) errs.businessName = 'Business name is required';
+      const cv = validateCity(city);
+      if (!cv.valid) errs.city = cv.error;
+      const av = validateAddress(fullAddress, true, 10);
+      if (!av.valid) errs.fullAddress = av.error;
+      const pcv = validatePincode(pincode);
+      if (!pcv.valid) errs.pincode = pcv.error;
     }
     if (currentStep === 3) {
-      if (!idProof) errs.idProof = "ID proof is required";
-      if (!profilePhoto) errs.profilePhoto = "Profile/Shop photo is required";
+      if (!idProof) errs.idProof = 'ID proof is required';
+      if (!profilePhoto) errs.profilePhoto = 'Profile/Shop photo is required';
     }
     if (currentStep === 4) {
-      if (!primaryCategory) errs.primaryCategory = "Select a primary category";
+      if (!primaryCategory) errs.primaryCategory = 'Select a primary category';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;

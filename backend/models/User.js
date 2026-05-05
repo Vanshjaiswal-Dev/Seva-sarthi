@@ -14,22 +14,25 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: false,
       unique: true,
+      sparse: true,
       lowercase: true,
       trim: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
+      match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Please enter a valid email address'],
     },
     password: {
       type: String,
       required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters'],
+      maxlength: [15, 'Password cannot exceed 15 characters'],
       select: false, // Don't return password by default
     },
     phone: {
       type: String,
       trim: true,
       default: '',
+      match: [/^$|^[6-9]\d{9}$/, 'Please enter a valid 10-digit mobile number'],
     },
     role: {
       type: String,
@@ -79,6 +82,28 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       select: false,
+    },
+    // Signup OTP verification fields
+    signupOtp: {
+      type: String,
+      select: false,
+    },
+    signupOtpExpires: {
+      type: Date,
+      select: false,
+    },
+    signupOtpAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isPhoneVerified: {
+      type: Boolean,
+      default: false,
     },
   },
   {
