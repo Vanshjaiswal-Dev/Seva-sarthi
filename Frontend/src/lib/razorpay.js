@@ -1,5 +1,19 @@
 import api from './axios';
 
+export function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 /**
  * Opens Razorpay checkout modal and handles the full payment flow:
  *   1. Create order on backend
@@ -25,6 +39,12 @@ export async function openRazorpayCheckout({
   metadata = {},
 }) {
   try {
+    const isLoaded = await loadRazorpayScript();
+    if (!isLoaded) {
+      onError?.('Razorpay SDK failed to load. Please check your internet connection or disable adblockers.');
+      return;
+    }
+
     // Step 1: Create order on backend
     const orderRes = await api.post('/payments/create-order', {
       amount,
