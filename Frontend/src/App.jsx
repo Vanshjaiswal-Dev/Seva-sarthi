@@ -116,6 +116,14 @@ function App() {
               }
             />
             <Route
+              path="/my-bookings"
+              element={
+                <RoleProtectedRoute allowedRoles={["user"]}>
+                  <UserDashboard />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
               path="/complaints/new"
               element={
                 <RoleProtectedRoute allowedRoles={["user"]}>

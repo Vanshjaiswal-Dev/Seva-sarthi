@@ -6,7 +6,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { OAuth2Client } = require('google-auth-library');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '1013725732158-j906o5v3p573n670goh4l98d7p8h4e77.apps.googleusercontent.com');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 let transporter = null;
 let transporterMode = 'uninitialized';
@@ -280,7 +280,7 @@ const googleAuth = asyncHandler(async (req, res) => {
   try {
     ticket = await googleClient.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID || '1013725732158-j906o5v3p573n670goh4l98d7p8h4e77.apps.googleusercontent.com',
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
   } catch (error) {
     throw new ApiError(401, 'Invalid Google token.');
@@ -301,13 +301,9 @@ const googleAuth = asyncHandler(async (req, res) => {
       throw new ApiError(400, 'Service providers must log in with email and password.');
     }
   } else {
-    // Create new user if they don't exist
-    const randomPassword = crypto.randomBytes(16).toString('hex');
-
     user = await User.create({
       name,
       email,
-      password: randomPassword,
       avatar: picture,
       role: 'user',
       dashboard: '/user/dashboard',
@@ -652,9 +648,9 @@ const sendProviderOtp = asyncHandler(async (req, res) => {
     }
   } catch (err) { console.error('Email send error:', err.message); }
 
-  // Fallback: return in response for dev
+  // Fallback: return in response for dev if email not configured
   console.log('📱 PROVIDER OTP:', otp, 'for', email);
-  res.status(200).json(new ApiResponse(200, { devOtp: otp }, 'OTP sent (dev mode).'));
+  res.status(200).json(new ApiResponse(200, { devOtp: otp, mailConfigured: false }, 'OTP generated (Email not configured, check console).'));
 });
 
 // @desc    Verify provider registration OTP
@@ -708,14 +704,14 @@ const sendUserOtp = asyncHandler(async (req, res) => {
           subject: 'Verify Your Email - Seva Sarthi',
           html: `<div style="font-family:sans-serif;max-width:400px;margin:auto;padding:30px;border:1px solid #e2e8f0;border-radius:16px;"><h2 style="color:#0F172A;">Welcome to Seva Sarthi!</h2><p>Your verification OTP is:</p><div style="background:#f8fafc;padding:20px;text-align:center;border-radius:12px;margin:20px 0;"><span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#0F172A;">${otp}</span></div><p style="color:#94a3b8;font-size:13px;">Valid for 10 minutes. Do not share this code.</p></div>`
         });
-        return res.status(200).json(new ApiResponse(200, { sent: true, method: 'email', devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined }, 'OTP sent to your email address.'));
+        return res.status(200).json(new ApiResponse(200, { sent: true, method: 'email', mailConfigured: true }, 'OTP sent to your email address.'));
       }
     } catch (err) { console.error('Email send error:', err.message); }
   }
 
-  // Fallback / Phone
+  // Fallback / Phone or Email failure
   console.log(`📱 USER ${type.toUpperCase()} OTP:`, otp, 'for', key);
-  return res.status(200).json(new ApiResponse(200, { devOtp: otp, method: type }, 'OTP generated successfully.'));
+  return res.status(200).json(new ApiResponse(200, { devOtp: otp, method: type, mailConfigured: false }, 'OTP generated successfully.'));
 });
 
 // @desc    Verify user signup OTP

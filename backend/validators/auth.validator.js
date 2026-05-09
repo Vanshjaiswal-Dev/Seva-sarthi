@@ -4,9 +4,9 @@ const Joi = require('joi');
 const strictEmailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 // Password pattern - min 6, max 15
-const passwordSchema = Joi.string().min(6).max(15).required().messages({
+const passwordSchema = Joi.string().min(6).max(14).required().messages({
   'string.min': 'Password must be at least 6 characters',
-  'string.max': 'Password cannot exceed 15 characters',
+  'string.max': 'Password cannot exceed 14 characters',
   'any.required': 'Password is required',
 });
 
@@ -95,9 +95,9 @@ const changePasswordSchema = {
     currentPassword: Joi.string().required().messages({
       'any.required': 'Current password is required',
     }),
-    newPassword: Joi.string().min(6).max(15).required().messages({
+    newPassword: Joi.string().min(6).max(14).required().messages({
       'string.min': 'New password must be at least 6 characters',
-      'string.max': 'New password cannot exceed 15 characters',
+      'string.max': 'New password cannot exceed 14 characters',
       'any.required': 'New password is required',
     }),
   }),
@@ -134,9 +134,9 @@ const resetPasswordSchema = {
     phone: Joi.string().allow('').optional(),
     identifier: Joi.string().optional(),
     resetToken: Joi.string().required(),
-    newPassword: Joi.string().min(6).max(15).required().messages({
+    newPassword: Joi.string().min(6).max(14).required().messages({
       'string.min': 'Password must be at least 6 characters',
-      'string.max': 'Password cannot exceed 15 characters',
+      'string.max': 'Password cannot exceed 14 characters',
     }),
   }),
 };

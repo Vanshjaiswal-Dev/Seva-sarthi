@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { openRazorpayCheckout } from '../lib/razorpay';
 import { validateName, validatePhone, validateAddress, validatePincode, validateCity, validateAadhaar, validatePAN, cleanPhone, digitsOnly } from '../lib/validators';
+import { toolCategoriesMap } from '../lib/constants';
 
 const RENTALS_STORAGE_KEY = 'sevaSarthi.rentals.v1';
 
@@ -255,7 +256,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                 <div>
                   <h3 className="font-bold text-lg text-slate-900 leading-tight mb-1">{tool.name}</h3>
                   <p className="text-sm text-slate-500 mb-2">Available Now</p>
-                  <span className="inline-block px-2.5 py-1 bg-teal-50 text-teal-700 text-xs font-bold rounded-lg border border-teal-100">
+                  <span className="inline-block px-2.5 py-1 bg-yellow-50 text-yellow-700 text-xs font-bold rounded-lg border border-yellow-100">
                     ₹{tool.dailyRate} / day
                   </span>
                 </div>
@@ -264,12 +265,12 @@ function CartDrawer({ tool, onClose, onConfirm }) {
               <div className="mb-8">
                 <label className="block font-bold text-slate-800 mb-4">Rental Duration</label>
                 <div className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-2xl">
-                  <button onClick={() => setDays(Math.max(1, days - 1))} className="w-12 h-12 rounded-xl bg-white shadow-sm border border-slate-200 flex items-center justify-center font-bold text-xl text-slate-600 hover:text-teal-600 hover:border-teal-300 transition-all">-</button>
+                  <button onClick={() => setDays(Math.max(1, days - 1))} className="w-12 h-12 rounded-xl bg-white shadow-sm border border-slate-200 flex items-center justify-center font-bold text-xl text-slate-600 hover:text-yellow-600 hover:border-yellow-300 transition-all">-</button>
                   <div className="text-center">
                     <span className="text-2xl font-black text-slate-800 block">{days}</span>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Day{days > 1 ? 's' : ''}</span>
                   </div>
-                  <button onClick={() => setDays(Math.min(30, days + 1))} className="w-12 h-12 rounded-xl bg-white shadow-sm border border-slate-200 flex items-center justify-center font-bold text-xl text-slate-600 hover:text-teal-600 hover:border-teal-300 transition-all">+</button>
+                  <button onClick={() => setDays(Math.min(30, days + 1))} className="w-12 h-12 rounded-xl bg-white shadow-sm border border-slate-200 flex items-center justify-center font-bold text-xl text-slate-600 hover:text-yellow-600 hover:border-yellow-300 transition-all">+</button>
                 </div>
               </div>
 
@@ -288,7 +289,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                 </div>
                 <div className="pt-3 mt-3 border-t border-slate-200 flex justify-between items-center pb-1">
                   <span className="font-bold text-slate-800">Total</span>
-                  <span className="text-2xl font-black text-teal-600">₹{total}</span>
+                  <span className="text-2xl font-black text-yellow-600">₹{total}</span>
                 </div>
               </div>
 
@@ -306,11 +307,11 @@ function CartDrawer({ tool, onClose, onConfirm }) {
 
           {step === 2 && (
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-6 space-y-6">
-              <div className="bg-teal-50 border border-teal-100 p-4 rounded-2xl flex items-start gap-4">
-                <span className="material-symbols-outlined text-teal-600 mt-0.5">local_shipping</span>
+              <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-2xl flex items-start gap-4">
+                <span className="material-symbols-outlined text-yellow-600 mt-0.5">local_shipping</span>
                 <div>
-                  <h4 className="font-bold text-teal-900 mb-1">Fast delivery scheduling</h4>
-                  <p className="text-sm text-teal-700/80">Choose a delivery date and time window. Our agent will verify ID at handover.</p>
+                  <h4 className="font-bold text-yellow-900 mb-1">Fast delivery scheduling</h4>
+                  <p className="text-sm text-yellow-700/80">Choose a delivery date and time window. Our agent will verify ID at handover.</p>
                 </div>
               </div>
 
@@ -323,7 +324,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     <input
                       value={details.fullName}
                       onChange={(e) => updateDetails({ fullName: e.target.value })}
-                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none ${fieldErrors.fullName ? 'border-rose-300' : 'border-slate-200'}`}
+                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none ${fieldErrors.fullName ? 'border-rose-300' : 'border-slate-200'}`}
                       placeholder="e.g. Rahul Sharma"
                       type="text"
                       autoComplete="name"
@@ -335,7 +336,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     <input
                       value={details.phone}
                       onChange={(e) => updateDetails({ phone: e.target.value })}
-                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none ${fieldErrors.phone ? 'border-rose-300' : 'border-slate-200'}`}
+                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none ${fieldErrors.phone ? 'border-rose-300' : 'border-slate-200'}`}
                       placeholder="10-digit number"
                       type="tel"
                       autoComplete="tel"
@@ -366,7 +367,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                           });
                           toast.success('Saved address applied!');
                         }}
-                        className="text-xs font-bold text-teal-600 hover:text-teal-800 transition-colors flex items-center gap-1"
+                        className="text-xs font-bold text-yellow-600 hover:text-yellow-800 transition-colors flex items-center gap-1"
                       >
                         <span className="material-symbols-outlined text-[14px]">home</span>
                         Use saved address
@@ -380,7 +381,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     <input
                       value={details.addressLine1}
                       onChange={(e) => updateDetails({ addressLine1: e.target.value })}
-                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none ${fieldErrors.addressLine1 ? 'border-rose-300' : 'border-slate-200'}`}
+                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none ${fieldErrors.addressLine1 ? 'border-rose-300' : 'border-slate-200'}`}
                       placeholder="House / Flat / Street"
                       type="text"
                       autoComplete="address-line1"
@@ -392,7 +393,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     <input
                       value={details.addressLine2}
                       onChange={(e) => updateDetails({ addressLine2: e.target.value })}
-                      className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
+                      className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none"
                       placeholder="Area / Building"
                       type="text"
                       autoComplete="address-line2"
@@ -404,7 +405,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                       <input
                         value={details.city}
                         onChange={(e) => updateDetails({ city: e.target.value })}
-                        className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none ${fieldErrors.city ? 'border-rose-300' : 'border-slate-200'}`}
+                        className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none ${fieldErrors.city ? 'border-rose-300' : 'border-slate-200'}`}
                         placeholder="City"
                         type="text"
                         autoComplete="address-level2"
@@ -416,7 +417,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                       <input
                         value={details.pincode}
                         onChange={(e) => updateDetails({ pincode: e.target.value })}
-                        className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none ${fieldErrors.pincode ? 'border-rose-300' : 'border-slate-200'}`}
+                        className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none ${fieldErrors.pincode ? 'border-rose-300' : 'border-slate-200'}`}
                         placeholder="6 digits"
                         type="text"
                         inputMode="numeric"
@@ -430,7 +431,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     <input
                       value={details.landmark}
                       onChange={(e) => updateDetails({ landmark: e.target.value })}
-                      className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
+                      className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none"
                       placeholder="e.g. Near City Mall"
                       type="text"
                     />
@@ -448,7 +449,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                       value={details.deliveryDate}
                       onChange={(e) => updateDetails({ deliveryDate: e.target.value })}
                       min={minDate}
-                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none ${fieldErrors.deliveryDate ? 'border-rose-300' : 'border-slate-200'}`}
+                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none ${fieldErrors.deliveryDate ? 'border-rose-300' : 'border-slate-200'}`}
                       type="date"
                     />
                     {fieldErrors.deliveryDate && <p className="mt-1 text-xs font-semibold text-rose-600">{fieldErrors.deliveryDate}</p>}
@@ -458,7 +459,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     <select
                       value={details.deliveryWindow}
                       onChange={(e) => updateDetails({ deliveryWindow: e.target.value })}
-                      className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
+                      className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none"
                     >
                       <option>08:00 - 10:00</option>
                       <option>10:00 - 12:00</option>
@@ -480,7 +481,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     <select
                       value={details.idType}
                       onChange={(e) => updateDetails({ idType: e.target.value })}
-                      className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
+                      className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none"
                     >
                       <option>Aadhaar</option>
                       <option>PAN</option>
@@ -493,7 +494,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     <input
                       value={details.idNumber}
                       onChange={(e) => updateDetails({ idNumber: e.target.value })}
-                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none ${fieldErrors.idNumber ? 'border-rose-300' : 'border-slate-200'}`}
+                      className={`mt-2 w-full px-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none ${fieldErrors.idNumber ? 'border-rose-300' : 'border-slate-200'}`}
                       placeholder="Enter ID number"
                       type="text"
                     />
@@ -509,7 +510,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                 <textarea
                   value={details.notes}
                   onChange={(e) => updateDetails({ notes: e.target.value })}
-                  className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none resize-none"
+                  className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none resize-none"
                   rows={3}
                   placeholder="Gate code, entry instructions, etc."
                 />
@@ -521,7 +522,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     checked={details.agreeDepositHold}
                     onChange={(e) => updateDetails({ agreeDepositHold: e.target.checked })}
                     type="checkbox"
-                    className="mt-1 w-4 h-4 accent-teal-600"
+                    className="mt-1 w-4 h-4 accent-yellow-600"
                   />
                   <div className="text-sm">
                     <p className="font-bold text-slate-800">Refundable deposit acknowledgement</p>
@@ -534,7 +535,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                     checked={details.agreeTerms}
                     onChange={(e) => updateDetails({ agreeTerms: e.target.checked })}
                     type="checkbox"
-                    className="mt-1 w-4 h-4 accent-teal-600"
+                    className="mt-1 w-4 h-4 accent-yellow-600"
                   />
                   <div className="text-sm">
                     <p className="font-bold text-slate-800">Terms & damage policy</p>
@@ -573,7 +574,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                 </div>
                 <div className="pt-3 mt-3 border-t border-slate-200 flex justify-between items-center pb-1">
                   <span className="font-bold text-slate-800">Payable now</span>
-                  <span className="text-2xl font-black text-teal-600">₹{total}</span>
+                  <span className="text-2xl font-black text-yellow-600">₹{total}</span>
                 </div>
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span>Refundable deposit (held)</span>
@@ -581,23 +582,23 @@ function CartDrawer({ tool, onClose, onConfirm }) {
                 </div>
               </div>
 
-              <div className="bg-teal-50 border border-teal-100 p-4 rounded-2xl flex items-start gap-3">
-                <span className="material-symbols-outlined text-teal-600 mt-0.5">lock</span>
-                <p className="text-sm text-teal-800/90 font-medium">Your payment is securely processed via <strong>Razorpay</strong>. Deposit of ₹{refundableDeposit} will be held separately and refunded after tool return.</p>
+              <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-2xl flex items-start gap-3">
+                <span className="material-symbols-outlined text-yellow-600 mt-0.5">lock</span>
+                <p className="text-sm text-yellow-800/90 font-medium">Your payment is securely processed via <strong>Razorpay</strong>. Deposit of ₹{refundableDeposit} will be held separately and refunded after tool return.</p>
               </div>
             </motion.div>
           )}
 
           {step === 4 && (
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring" }} className="p-10 flex flex-col items-center justify-center h-full text-center">
-              <div className="w-24 h-24 bg-teal-100 rounded-full flex justify-center items-center mb-6">
-                <span className="material-symbols-outlined text-teal-600 text-6xl">verified</span>
+              <div className="w-24 h-24 bg-yellow-100 rounded-full flex justify-center items-center mb-6">
+                <span className="material-symbols-outlined text-yellow-600 text-6xl">verified</span>
               </div>
               <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Rental Confirmed</h3>
               <p className="text-slate-500 font-medium mb-8">We’re scheduling delivery. Track updates in your dashboard.</p>
               
               <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 2.2, ease: "linear" }} className="h-full bg-teal-500"></motion.div>
+                <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 2.2, ease: "linear" }} className="h-full bg-yellow-500"></motion.div>
               </div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-4">Redirecting</p>
             </motion.div>
@@ -619,7 +620,7 @@ function CartDrawer({ tool, onClose, onConfirm }) {
             <button 
               onClick={step === 1 ? () => setStep(2) : step === 2 ? handleProceedFromDetails : handleProcessPayment}
               disabled={isPaymentProcessing}
-              className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-teal-600 hover:shadow-lg hover:shadow-teal-500/30 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait"
+              className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-yellow-600 hover:shadow-lg hover:shadow-yellow-500/30 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait"
             >
               {isPaymentProcessing ? (
                 <><span className="material-symbols-outlined animate-spin text-lg">progress_activity</span> Processing Payment...</>
@@ -672,9 +673,15 @@ export default function ToolRentalPage() {
   const { tools, loading: isLoading, error: loadError, fetchTools, createRental } = useToolStore();
   const { t } = useLanguageStore();
   
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeCategory, setActiveCategory] = useState(location.state?.category || "All");
   const [searchQuery, setSearchQuery] = useState("");
   const [maxPrice, setMaxPrice] = useState(10000);
+
+  React.useEffect(() => {
+    if (location.state?.category) {
+      setActiveCategory(location.state.category);
+    }
+  }, [location.state]);
   const [sortBy, setSortBy] = useState("relevance");
   const [condition, setCondition] = useState("All");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
@@ -785,8 +792,8 @@ export default function ToolRentalPage() {
               
               {/* Industry Level Search Bar */}
               <div className="relative w-full md:w-[450px] group">
-                <div className="flex items-center bg-white border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-teal-600 transition-all shadow-sm group-hover:shadow-md">
-                  <span className="material-symbols-outlined pl-4 text-slate-400 group-focus-within:text-teal-600">search</span>
+                <div className="flex items-center bg-white border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-yellow-600 transition-all shadow-sm group-hover:shadow-md">
+                  <span className="material-symbols-outlined pl-4 text-slate-400 group-focus-within:text-yellow-600">search</span>
                   <input 
                     type="text" 
                     placeholder={t('tr_search_placeholder')} 
@@ -799,7 +806,7 @@ export default function ToolRentalPage() {
                       <span className="material-symbols-outlined text-xl">close</span>
                     </button>
                   )}
-                  <button className="bg-teal-600 text-white px-5 py-3.5 font-bold hover:bg-teal-700 transition-colors">
+                  <button className="bg-yellow-600 text-white px-5 py-3.5 font-bold hover:bg-yellow-700 transition-colors">
                     {t('sd_search')}
                   </button>
                 </div>
@@ -811,48 +818,71 @@ export default function ToolRentalPage() {
               <div className="flex flex-wrap items-center gap-2 mt-6">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">{t('sd_active_filters')}:</span>
                 {searchQuery && (
-                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                  <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-full text-xs font-bold border border-yellow-100">
                     {t('sd_search')}: {searchQuery}
-                    <button onClick={() => removeFilter('search')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                    <button onClick={() => removeFilter('search')} className="hover:text-yellow-900"><span className="material-symbols-outlined text-sm">close</span></button>
                   </div>
                 )}
                 {activeCategory !== 'All' && (
-                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                  <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-full text-xs font-bold border border-yellow-100">
                     {activeCategory}
-                    <button onClick={() => removeFilter('category')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                    <button onClick={() => removeFilter('category')} className="hover:text-yellow-900"><span className="material-symbols-outlined text-sm">close</span></button>
                   </div>
                 )}
                 {maxPrice < 10000 && (
-                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                  <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-full text-xs font-bold border border-yellow-100">
                     Under ₹{maxPrice}
-                    <button onClick={() => removeFilter('price')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                    <button onClick={() => removeFilter('price')} className="hover:text-yellow-900"><span className="material-symbols-outlined text-sm">close</span></button>
                   </div>
                 )}
                 {condition !== 'All' && (
-                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                  <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-full text-xs font-bold border border-yellow-100">
                     {condition}
-                    <button onClick={() => removeFilter('condition')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                    <button onClick={() => removeFilter('condition')} className="hover:text-yellow-900"><span className="material-symbols-outlined text-sm">close</span></button>
                   </div>
                 )}
                 {onlyAvailable && (
-                  <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full text-xs font-bold border border-teal-100">
+                  <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-full text-xs font-bold border border-yellow-100">
                     {t('tr_in_stock')}
-                    <button onClick={() => removeFilter('availability')} className="hover:text-teal-900"><span className="material-symbols-outlined text-sm">close</span></button>
+                    <button onClick={() => removeFilter('availability')} className="hover:text-yellow-900"><span className="material-symbols-outlined text-sm">close</span></button>
                   </div>
                 )}
-                <button onClick={handleClearFilters} className="text-xs font-bold text-teal-600 hover:underline px-2">{t('sd_clear_all')}</button>
+                <button onClick={handleClearFilters} className="text-xs font-bold text-yellow-600 hover:underline px-2">{t('sd_clear_all')}</button>
               </div>
             )}
           </header>
 
-          <div className="flex flex-col lg:flex-row gap-10">
+          {activeCategory === "All" && !searchQuery && filteredTools.length > 0 ? (
+            <div className="space-y-16">
+              {toolCategoriesMap.map((cat, idx) => (
+                <div key={idx} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                  <h2 className="text-2xl font-bold text-slate-800 mb-8">{cat.title}</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {cat.items.map((item, i) => (
+                      <div 
+                        key={i} 
+                        onClick={() => setActiveCategory(item.name)} 
+                        className="flex flex-col items-center gap-3 cursor-pointer group"
+                      >
+                        <div className="w-full aspect-square rounded-2xl bg-slate-50 overflow-hidden border border-slate-100 group-hover:border-yellow-200 group-hover:shadow-md transition-all">
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        </div>
+                        <span className="font-semibold text-slate-700 text-center leading-tight group-hover:text-yellow-600">{item.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col lg:flex-row gap-10">
             
             {/* Sidebar Categories & Filters */}
             <aside className="w-full lg:w-72 flex-shrink-0">
                <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-card lg:sticky lg:top-28 space-y-8">
                  <div>
                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                     <span className="material-symbols-outlined text-teal-600 text-lg">filter_list</span>
+                     <span className="material-symbols-outlined text-yellow-600 text-lg">filter_list</span>
                      {t('tr_equipment_types')}
                    </h3>
                    <div className="flex flex-row lg:flex-col gap-1.5 overflow-x-auto scrollbar-hide pb-2 lg:pb-0">
@@ -860,7 +890,7 @@ export default function ToolRentalPage() {
                        <button
                          key={cat}
                          onClick={() => setActiveCategory(cat)}
-                         className={`px-4 py-2.5 rounded-xl text-left text-sm font-bold transition-all flex items-center justify-between group flex-shrink-0 whitespace-nowrap ${activeCategory === cat ? 'bg-teal-600 text-white shadow-md shadow-teal-500/20' : 'text-slate-600 hover:bg-slate-50'}`}>
+                         className={`px-4 py-2.5 rounded-xl text-left text-sm font-bold transition-all flex items-center justify-between group flex-shrink-0 whitespace-nowrap ${activeCategory === cat ? 'bg-yellow-600 text-white shadow-md shadow-yellow-500/20' : 'text-slate-600 hover:bg-slate-50'}`}>
                          {cat}
                          <span className={`material-symbols-outlined text-sm transition-opacity hidden lg:block ${activeCategory === cat ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>chevron_right</span>
                        </button>
@@ -870,17 +900,17 @@ export default function ToolRentalPage() {
 
                  {/* Price Filter */}
                  <div>
-                   <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">payments</span>{t('tr_max_budget')}</h3>
-                   <input type="range" min="100" max="10000" step="100" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-teal-600" />
-                   <div className="flex justify-between mt-2 text-xs font-bold text-slate-500"><span>₹100</span><span className="text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100">Up to ₹{maxPrice}</span></div>
+                   <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-yellow-600 text-lg">payments</span>{t('tr_max_budget')}</h3>
+                   <input type="range" min="100" max="10000" step="100" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-yellow-600" />
+                   <div className="flex justify-between mt-2 text-xs font-bold text-slate-500"><span>₹100</span><span className="text-yellow-700 bg-yellow-50 px-2.5 py-1 rounded-lg border border-yellow-100">Up to ₹{maxPrice}</span></div>
                  </div>
 
                  {/* Condition Filter */}
                  <div>
-                   <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">verified</span>{t('tr_condition')}</h3>
+                   <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-yellow-600 text-lg">verified</span>{t('tr_condition')}</h3>
                    <div className="flex flex-wrap gap-2">
                      {["All", "Like New", "Excellent", "Good"].map(cond => (
-                       <button key={cond} onClick={() => setCondition(cond)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${condition === cond ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'}`}>
+                       <button key={cond} onClick={() => setCondition(cond)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${condition === cond ? 'bg-yellow-600 text-white border-yellow-600' : 'bg-white text-slate-600 border-slate-200 hover:border-yellow-300'}`}>
                          {cond}
                        </button>
                      ))}
@@ -890,15 +920,15 @@ export default function ToolRentalPage() {
                  {/* Sort & Availability */}
                  <div className="pt-2 space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">event_available</span>{t('tr_in_stock')}</h3>
-                      <button onClick={() => setOnlyAvailable(!onlyAvailable)} className={`w-10 h-5 rounded-full transition-colors relative ${onlyAvailable ? 'bg-teal-600' : 'bg-slate-200'}`}>
+                      <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2"><span className="material-symbols-outlined text-yellow-600 text-lg">event_available</span>{t('tr_in_stock')}</h3>
+                      <button onClick={() => setOnlyAvailable(!onlyAvailable)} className={`w-10 h-5 rounded-full transition-colors relative ${onlyAvailable ? 'bg-yellow-600' : 'bg-slate-200'}`}>
                         <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${onlyAvailable ? 'left-6' : 'left-1'}`}></div>
                       </button>
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-teal-600 text-lg">sort</span>{t('sd_sort_by')}</h3>
-                      <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:border-teal-500 focus:ring-0 outline-none cursor-pointer">
+                      <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><span className="material-symbols-outlined text-yellow-600 text-lg">sort</span>{t('sd_sort_by')}</h3>
+                      <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:border-yellow-500 focus:ring-0 outline-none cursor-pointer">
                         <option value="relevance">{t('tr_relevance')}</option>
                         <option value="priceLowHigh">{t('tr_price_low_high')}</option>
                         <option value="priceHighLow">{t('tr_price_high_low')}</option>
@@ -908,7 +938,7 @@ export default function ToolRentalPage() {
 
                  {/* Delivery Banner */}
                  <div className="mt-8 bg-gradient-to-br from-brand to-brand-light p-6 rounded-3xl text-white relative overflow-hidden shadow-lg hidden lg:block">
-                    <span className="material-symbols-outlined text-teal-400 text-3xl mb-2 relative z-10">bolt</span>
+                    <span className="material-symbols-outlined text-yellow-400 text-3xl mb-2 relative z-10">bolt</span>
                     <h4 className="font-bold mb-1 relative z-10 text-lg">Turbo Delivery</h4>
                     <p className="text-xs text-slate-300 font-medium relative z-10 leading-relaxed">Hardware delivered to site in under 60 minutes. Pro-grade speed.</p>
                     <div className="absolute -right-4 -bottom-4 opacity-10"><span className="material-symbols-outlined text-[100px]">local_shipping</span></div>
@@ -927,7 +957,7 @@ export default function ToolRentalPage() {
                   <p className="text-slate-600 font-medium mb-6">{loadError}</p>
                   <button
                     onClick={handleRetryLoad}
-                    className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-6 py-3 rounded-xl hover:bg-teal-600 transition-all active:scale-95"
+                    className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-6 py-3 rounded-xl hover:bg-yellow-600 transition-all active:scale-95"
                   >
                     <span className="material-symbols-outlined text-lg">refresh</span>
                     Retry
@@ -960,7 +990,7 @@ export default function ToolRentalPage() {
                             )}
                             {tool.condition === 'Like New' && (
                               <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-md flex items-center gap-1 shadow-sm border border-slate-100">
-                                <span className="material-symbols-outlined text-teal-600 text-[14px]">new_releases</span>
+                                <span className="material-symbols-outlined text-yellow-600 text-[14px]">new_releases</span>
                                 <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Premium</span>
                               </div>
                             )}
@@ -971,7 +1001,7 @@ export default function ToolRentalPage() {
                           
                           <div className="flex flex-col flex-grow">
                             <div className="flex justify-between items-start mb-2">
-                              <h3 className="text-lg font-bold text-slate-900 leading-tight group-hover:text-teal-600 transition-colors cursor-pointer">{tool.name}</h3>
+                              <h3 className="text-lg font-bold text-slate-900 leading-tight group-hover:text-yellow-600 transition-colors cursor-pointer">{tool.name}</h3>
                             </div>
                             
                             <div className="flex items-center gap-3 mb-4">
@@ -984,7 +1014,7 @@ export default function ToolRentalPage() {
                             
                             <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-auto pt-4 border-t border-slate-100 gap-4">
                               <div>
-                              <span className="text-2xl font-extrabold text-teal-600">₹{tool.dailyRate}</span>
+                              <span className="text-2xl font-extrabold text-yellow-600">₹{tool.dailyRate}</span>
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">/ day</span>
                               </div>
                               
@@ -993,7 +1023,7 @@ export default function ToolRentalPage() {
                                 onClick={() => handleRentNow(tool)} 
                                 className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-1 active:scale-95 ${
                                   tool.status === 'available' 
-                                    ? 'bg-slate-900 text-white hover:bg-teal-600 hover:shadow-lg hover:shadow-teal-500/30' 
+                                    ? 'bg-slate-900 text-white hover:bg-yellow-600 hover:shadow-lg hover:shadow-yellow-500/30' 
                                     : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                 }`}
                               >
@@ -1016,7 +1046,7 @@ export default function ToolRentalPage() {
                       <p className="text-slate-500 font-medium mb-6">Try a different keyword or reset filters to see everything.</p>
                       <button
                         onClick={handleClearFilters}
-                        className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-6 py-3 rounded-xl hover:bg-teal-600 transition-all active:scale-95"
+                        className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-6 py-3 rounded-xl hover:bg-yellow-600 transition-all active:scale-95"
                       >
                         <span className="material-symbols-outlined text-lg">filter_alt_off</span>
                         Clear filters
@@ -1026,11 +1056,12 @@ export default function ToolRentalPage() {
                 </motion.div>
               )}
             </section>
-          </div>
+            </div>
+          )}
 
           {/* New Premium Footer Section with Toast Actions */}
           <div className="mt-20 p-12 bg-slate-900 rounded-3xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8 shadow-2xl">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+            <div className="absolute top-0 right-0 w-96 h-96 bg-yellow-500/10 rounded-full blur-[100px] pointer-events-none"></div>
             <div className="relative z-10 text-center lg:text-left">
               <h2 className="text-3xl font-extrabold font-jakarta text-white mb-2">Can't find the right tool?</h2>
               <p className="text-slate-400 leading-relaxed max-w-lg font-medium">Our tactical inventory updates every hour. Request a specific professional tool and we'll track it down for you.</p>
@@ -1038,7 +1069,7 @@ export default function ToolRentalPage() {
             <div className="relative z-10 flex flex-wrap justify-center gap-4">
               <button 
                 onClick={() => toast.success('Tactical request submitted! Tracking your tool...')} 
-                className="bg-teal-500 text-teal-950 px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-teal-400 transition-all active:scale-[0.97]"
+                className="bg-yellow-500 text-yellow-950 px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-yellow-400 transition-all active:scale-[0.97]"
               >
                 Request a Tool
               </button>

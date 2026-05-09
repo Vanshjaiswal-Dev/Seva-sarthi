@@ -167,7 +167,7 @@ export function validateEmail(email) {
 export function validatePassword(password) {
   const checks = {
     minLength: password.length >= 6,
-    maxLength: password.length <= 15,
+    maxLength: password.length <= 14,
     hasUppercase: /[A-Z]/.test(password),
     hasLowercase: /[a-z]/.test(password),
     hasNumber: /[0-9]/.test(password),
@@ -188,8 +188,8 @@ export function validatePassword(password) {
     return { valid: false, error: 'Password is required', checks, strength: 0 };
   }
 
-  if (password.length > 15) {
-    return { valid: false, error: 'Password cannot exceed 15 characters', checks, strength };
+  if (password.length > 14) {
+    return { valid: false, error: 'Password cannot exceed 14 characters', checks, strength };
   }
 
   if (password.length < 6) {

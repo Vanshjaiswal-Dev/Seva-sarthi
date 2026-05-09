@@ -385,7 +385,7 @@ export default function Authentication() {
                     <button type="button" onClick={() => { setForgotMode('email'); setForgotEmail(loginIdentifier); setErrors({}); }} className="text-xs font-bold text-accent-dark hover:text-accent transition-colors">{t('auth_forgot')}</button>
                   </div>
                   <div className="relative">
-                    <input value={password} onChange={e => setPassword(e.target.value)} id="password-input" className={`${inputCls} !pr-12`} placeholder="••••••••" type={showPassword ? 'text' : 'password'} maxLength={15} />
+                    <input value={password} onChange={e => setPassword(e.target.value.slice(0, 14))} id="password-input" className={`${inputCls} !pr-12`} placeholder="••••••••" type={showPassword ? 'text' : 'password'} maxLength={14} />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                       <span className="material-symbols-outlined text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
                     </button>
@@ -461,16 +461,16 @@ export default function Authentication() {
                 )}
 
                 <div>
-                  <label className={labelCls}>{t('auth_password')} (6-15 chars)</label>
+                  <label className={labelCls}>{t('auth_password')} (6-14 chars)</label>
                   <div className="relative">
-                    <input value={password} onChange={e => setPassword(e.target.value.slice(0,15))} className={`${inputCls} !pr-12`} placeholder="6-15 characters" type={showPassword ? 'text' : 'password'} maxLength={15} />
+                    <input value={password} onChange={e => setPassword(e.target.value.slice(0, 14))} className={`${inputCls} !pr-12`} placeholder="6-14 characters" type={showPassword ? 'text' : 'password'} maxLength={14} />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><span className="material-symbols-outlined text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span></button>
                   </div>
                   {password.length > 0 && (
                     <div className="mt-3 space-y-2">
                       <div className="flex gap-1 h-1.5 rounded-full overflow-hidden bg-slate-100"><div className={`h-full transition-all duration-300 ${getStrengthColor()}`} style={{ width: `${passwordStrength}%` }} /></div>
                       <div className="grid grid-cols-2 gap-1">
-                        {[['minLength','6+ characters'],['maxLength','≤ 15 characters'],['hasUppercase','Uppercase (A-Z)'],['hasLowercase','Lowercase (a-z)'],['hasNumber','Number (0-9)'],['hasSpecial','Special (!@#$)']].map(([key, label]) => (
+                        {[['minLength','6+ characters'],['maxLength','≤ 14 characters'],['hasUppercase','Uppercase (A-Z)'],['hasLowercase','Lowercase (a-z)'],['hasNumber','Number (0-9)'],['hasSpecial','Special (!@#$)']].map(([key, label]) => (
                           <div key={key} className={`flex items-center gap-1 text-[10px] font-bold ${passwordChecks[key] ? 'text-emerald-500' : 'text-slate-400'}`}>
                             <span className="material-symbols-outlined text-[14px]" style={{fontVariationSettings:"'FILL' 1"}}>{passwordChecks[key] ? 'check_circle' : 'radio_button_unchecked'}</span>{label}
                           </div>

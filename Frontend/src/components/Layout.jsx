@@ -7,6 +7,7 @@ import { useNotificationStore } from '../store/useNotificationStore';
 import { useLocationStore } from '../store/useLocationStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import LocationModal from './LocationModal';
+import { heroCategories, getCategoryItems, toolCategoriesMap, allCategories } from '../lib/constants';
 
 export default function Layout({ children }) {
   const { currentUser, logout } = useAuthStore();
@@ -20,11 +21,41 @@ export default function Layout({ children }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [manualCity, setManualCity] = useState('');
+  const [navSearchQuery, setNavSearchQuery] = useState('');
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  
+  const placeholders = [
+    'AC Repair',
+    'Kitchen Cleaning',
+    'Professional Plumber',
+    'Home Painting',
+    'Sofa Cleaning',
+    'Electrician',
+    'Pest Control',
+    'Bathroom Cleaning',
+    'Appliance Repair'
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
   
   const { city, fullAddress, setCity, detectLocation, isLocating } = useLocationStore();
   
+  const [showServicesMenu, setShowServicesMenu] = useState(false);
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  
   const notifRef = useRef(null);
+  const profileRef = useRef(null);
+  const servicesRef = useRef(null);
+  const toolsRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   const isLanding = location.pathname === '/';
   const isAuth = location.pathname === '/auth';
@@ -40,9 +71,10 @@ export default function Layout({ children }) {
     setMobileOpen(false);
     setShowNotifications(false);
     setShowLanguagePicker(false);
+    setShowProfileMenu(false);
   }, [location.pathname]);
 
-  // Click outside to close notifications and location picker
+  // Click outside to close notifications, language picker and profile menu
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notifRef.current && !notifRef.current.contains(event.target)) {
@@ -51,10 +83,60 @@ export default function Layout({ children }) {
       if (!event.target.closest('.language-picker')) {
         setShowLanguagePicker(false);
       }
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+      if (servicesRef.current && !servicesRef.current.contains(event.target)) {
+        setShowServicesMenu(false);
+      }
+      if (toolsRef.current && !toolsRef.current.contains(event.target)) {
+        setShowToolsMenu(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = language === 'hi' ? 'hi-IN' : 'en-IN';
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setNavSearchQuery(transcript);
+        setIsListening(false);
+        setTimeout(() => {
+          navigate('/services', { state: { query: transcript } });
+        }, 1500);
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, [navigate, language]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      if (recognitionRef.current) {
+        setNavSearchQuery("");
+        recognitionRef.current.start();
+        setIsListening(true);
+      }
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -75,142 +157,299 @@ export default function Layout({ children }) {
       {/* Navigation */}
       <nav
         className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-          scrolled
-            ? 'glass-nav py-3'
-            : 'bg-transparent py-4'
+          scrolled || !isLanding
+            ? 'bg-white shadow-sm py-3'
+            : 'bg-white py-4 border-b border-slate-100'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-12">
-            <Link
-              to="/"
-              className="flex items-center transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <img src="/logo.svg" alt="Seva Sarthi Logo" className="h-14 sm:h-16 w-auto drop-shadow-sm" />
-            </Link>
-
-            {/* Desktop Links */}
-            <div className="hidden md:flex items-center gap-8 bg-surface/50 px-6 py-2 rounded-full border border-slate-200/50 backdrop-blur-md shadow-sm">
-              <NavLink className={linkClass} to="/services">{t('nav_services')}</NavLink>
-              <NavLink className={linkClass} to="/rentals">{t('nav_rentals')}</NavLink>
-            </div>
-
-            {/* Right Section */}
-            <div className="hidden md:flex items-center gap-4">
+          <div className="flex items-center justify-between gap-2 h-14">
+            
+            {/* ── Left: Logo & Links ── */}
+            <div className="flex items-center gap-3 shrink-0">
+              <Link to="/" className="flex items-center transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                <img src="/logo.svg" alt="Seva Sarthi Logo" className="h-11 w-auto" />
+              </Link>
               
-              {/* Location Picker */}
-              <div className="relative location-picker">
+              <div className="hidden xl:block relative location-picker">
                 <button 
                   onClick={() => setShowLocationPicker(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-brand transition-colors max-w-[200px]"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-[13px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 transition-all max-w-[180px]"
                   title={fullAddress || city || 'Set Location'}
                 >
-                  <span className="material-symbols-outlined text-lg">location_on</span>
+                  <span className="material-symbols-outlined text-[18px] text-slate-500">location_on</span>
                   <span className="truncate">{fullAddress || city || 'Set Location'}</span>
-                  <span className="material-symbols-outlined text-sm ml-1 text-slate-400">expand_more</span>
+                  <span className="material-symbols-outlined text-[16px] text-slate-400">expand_more</span>
                 </button>
               </div>
 
-              {/* Language Switcher */}
-              <div className="relative language-picker border-l border-slate-200/60 pl-4">
-                <button 
-                  onClick={() => setShowLanguagePicker(!showLanguagePicker)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-brand transition-colors"
-                >
-                  <span className="material-symbols-outlined text-lg">language</span>
-                  {language === 'en' ? 'English' : 'हिन्दी'}
-                </button>
-                
-                <AnimatePresence>
-                  {showLanguagePicker && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-3 w-40 glass-panel rounded-2xl p-2 origin-top-right z-50 bg-surface shadow-lg border border-slate-200"
-                    >
-                      <button onClick={() => { setLanguage('en'); setShowLanguagePicker(false); }} className={`w-full text-left px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${language === 'en' ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>English</button>
-                      <button onClick={() => { setLanguage('hi'); setShowLanguagePicker(false); }} className={`w-full text-left px-4 py-2 rounded-xl text-sm font-semibold transition-colors mt-1 ${language === 'hi' ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>हिन्दी (Hindi)</button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Notification Bell */}
-              <div className="relative" ref={notifRef}>
-                <button 
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-brand transition-colors flex items-center justify-center"
-                >
-                  <span className="material-symbols-outlined text-[22px]">notifications</span>
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-surface animate-pulse"></span>
-                  )}
-                </button>
-
-                <AnimatePresence>
-                  {showNotifications && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute -right-2 sm:right-0 mt-3 w-[calc(100vw-2rem)] sm:w-80 glass-panel rounded-2xl overflow-hidden origin-top-right z-50 shadow-lg border border-slate-200"
-                    >
-                      <div className="p-4 border-b border-slate-200/50 flex items-center justify-between bg-surface/80">
-                        <h3 className="font-bold text-brand">{t('notifications')}</h3>
-                        {unreadCount > 0 && (
-                          <button onClick={markAllAsRead} className="text-xs text-accent-dark font-semibold hover:underline">{t('nav_mark_all_read')}</button>
-                        )}
-                      </div>
-                      <div className="max-h-[320px] overflow-y-auto custom-scrollbar bg-surface/60">
-                        {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-slate-500 text-sm">{t('no_notifications')}</div>
-                        ) : (
-                          notifications.map((notif) => (
-                            <div 
-                              key={notif.id} 
-                              onClick={() => markAsRead(notif.id)}
-                              className={`p-4 border-b border-slate-100/50 hover:bg-slate-50/80 cursor-pointer transition-colors ${notif.read ? 'opacity-70' : 'bg-slate-50/50'}`}
-                            >
-                              <div className="flex justify-between items-start mb-1">
-                                <h4 className={`text-sm font-semibold ${notif.read ? 'text-slate-600' : 'text-brand'}`}>{notif.title}</h4>
-                                {!notif.read && <span className="w-2 h-2 rounded-full bg-accent mt-1.5"></span>}
-                              </div>
-                              <p className="text-xs text-slate-500 leading-relaxed mb-2 line-clamp-2">{notif.message}</p>
-                              <span className="text-[10px] font-medium text-slate-400">{notif.time}</span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {currentUser ? (
-                <div className="flex items-center gap-2 pl-2 border-l border-slate-200/60">
-                  <Link
-                    to={currentUser.dashboard}
-                    className="text-sm font-semibold text-brand hover:text-accent-dark transition-colors px-4 py-2 rounded-xl hover:bg-slate-100"
+              <div className="hidden lg:flex items-center gap-3 ml-1">
+                <div className="relative" ref={servicesRef}>
+                  <button 
+                    onClick={() => setShowServicesMenu(!showServicesMenu)}
+                    className="text-[13px] font-bold text-slate-700 hover:text-amber-600 transition-colors flex items-center gap-0.5"
                   >
-                    {t('nav_dashboard')}
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="text-sm font-semibold text-slate-500 hover:text-red-600 px-4 py-2 rounded-xl hover:bg-red-50 transition-colors"
-                  >
-                    {t('nav_logout')}
+                    Services <span className="material-symbols-outlined text-[16px]">expand_more</span>
                   </button>
+                  <AnimatePresence>
+                    {showServicesMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="absolute top-full -left-20 mt-4 w-[750px] bg-white rounded-3xl shadow-2xl border border-slate-200 z-50 p-6 grid grid-cols-3 gap-6"
+                      >
+                        {allCategories.map(cat => (
+                          <div key={cat.id} className="group flex flex-col">
+                            <Link 
+                              to="/services"
+                              state={{ query: cat.title }}
+                              onClick={() => setShowServicesMenu(false)}
+                              className="flex items-center gap-3 mb-4 group-hover:opacity-80 transition-opacity"
+                            >
+                              <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:bg-amber-50 group-hover:border-amber-200 transition-colors shrink-0">
+                                <span className="material-symbols-outlined text-amber-500 text-[22px]">{cat.icon}</span>
+                              </div>
+                              <h4 className="font-extrabold text-slate-900 text-sm group-hover:text-amber-600 transition-colors leading-tight">{cat.title}</h4>
+                            </Link>
+                            <div className="space-y-2.5 ml-[52px] flex-grow">
+                              {getCategoryItems(cat).slice(0, 3).map((item, idx) => (
+                                <Link 
+                                  key={idx}
+                                  to="/services"
+                                  state={{ dbCategory: item.dbCategory, keywords: item.keywords, displayName: item.name }}
+                                  onClick={() => setShowServicesMenu(false)}
+                                  className="block text-sm text-slate-500 hover:text-amber-600 hover:translate-x-1 transition-all duration-200 font-medium"
+                                >
+                                  {item.name}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="col-span-3 pt-6 mt-2 border-t border-slate-100 text-center">
+                          <Link to="/services" onClick={() => setShowServicesMenu(false)} className="inline-flex items-center gap-2 text-slate-700 font-bold hover:text-amber-700 bg-slate-50 px-6 py-3 rounded-xl hover:bg-amber-50 transition-colors text-sm border border-slate-200 hover:border-amber-200">
+                            Explore All Services <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                          </Link>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              ) : (
-                <Link
-                  to="/auth"
-                  className="btn-primary text-sm !px-5 !py-2.5 !rounded-xl"
+
+                <div className="relative" ref={toolsRef}>
+                  <button 
+                    onClick={() => setShowToolsMenu(!showToolsMenu)}
+                    className="text-[13px] font-bold text-slate-700 hover:text-amber-600 transition-colors flex items-center gap-0.5"
+                  >
+                    Rentals <span className="material-symbols-outlined text-[16px]">expand_more</span>
+                  </button>
+                  <AnimatePresence>
+                    {showToolsMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="absolute top-full -left-20 mt-4 w-[650px] bg-white rounded-3xl shadow-2xl border border-slate-200 z-50 p-6 grid grid-cols-3 gap-6"
+                      >
+                        {toolCategoriesMap.map((cat, idx) => (
+                          <div key={idx}>
+                            <h4 className="font-extrabold text-slate-400 text-[11px] mb-4 pb-2 border-b border-slate-100 uppercase tracking-widest">{cat.title}</h4>
+                            <div className="space-y-3">
+                              {cat.items.map((item, iIdx) => (
+                                <Link 
+                                  key={iIdx}
+                                  to="/rentals"
+                                  state={{ category: item.name }}
+                                  onClick={() => setShowToolsMenu(false)}
+                                  className="flex items-center gap-3 p-2.5 -ml-2.5 rounded-xl hover:bg-slate-50 transition-colors group/item"
+                                >
+                                  <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center group-hover/item:bg-amber-50 transition-colors shrink-0 border border-slate-200/60 group-hover/item:border-amber-200">
+                                    <span className="material-symbols-outlined text-[20px] text-slate-500 group-hover/item:text-amber-600 transition-colors">{item.icon}</span>
+                                  </div>
+                                  <span className="text-sm font-bold text-slate-700 group-hover/item:text-amber-700 transition-colors">{item.name}</span>
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="col-span-3 pt-6 mt-2 border-t border-slate-100 text-center">
+                          <Link to="/rentals" onClick={() => setShowToolsMenu(false)} className="inline-flex items-center gap-2 text-slate-700 font-bold hover:text-amber-700 bg-slate-50 px-6 py-3 rounded-xl hover:bg-amber-50 transition-colors text-sm border border-slate-200 hover:border-amber-200">
+                            Explore Tool Inventory <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                          </Link>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Middle: Search Bar ── */}
+            <div className="hidden md:flex flex-grow mx-4">
+              <div className={`flex items-center w-full bg-slate-50 border rounded-xl overflow-hidden transition-all h-10 relative ${isListening ? 'border-amber-500 bg-white ring-4 ring-amber-500/10' : 'border-slate-200 focus-within:border-amber-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-amber-500/10'}`}>
+                <span className="material-symbols-outlined pl-4 text-slate-400 text-[18px] shrink-0">search</span>
+                
+                <div className="relative flex-grow h-full flex items-center">
+                  <input 
+                    type="text" 
+                    className="w-full h-full px-3 bg-transparent border-none focus:ring-0 text-slate-800 font-semibold text-sm outline-none placeholder:text-transparent z-10 relative"
+                    value={navSearchQuery}
+                    onChange={(e) => setNavSearchQuery(e.target.value)}
+                    disabled={isListening}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && navSearchQuery.trim()) {
+                        navigate('/services', { state: { query: navSearchQuery } });
+                      }
+                    }}
+                  />
+                  
+                  {/* Dynamic Animated Placeholder Overlay */}
+                  {!navSearchQuery && !isListening && (
+                    <div className="absolute left-3 right-4 pointer-events-none flex items-center gap-1.5 text-sm overflow-hidden">
+                      <span className="text-slate-400 font-medium shrink-0">Search for</span>
+                      <div className="relative h-5 flex-grow overflow-hidden">
+                        <AnimatePresence mode="wait">
+                          <motion.span
+                            key={placeholderIndex}
+                            initial={{ y: '100%', opacity: 0 }}
+                            animate={{ y: '0%', opacity: 1 }}
+                            exit={{ y: '-100%', opacity: 0 }}
+                            transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+                            className="absolute inset-0 flex items-center text-amber-600 font-bold whitespace-nowrap"
+                          >
+                            &ldquo;{placeholders[placeholderIndex]}&rdquo;
+                          </motion.span>
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  )}
+
+                  {isListening && (
+                    <div className="absolute left-3 pointer-events-none text-amber-600 font-bold text-sm animate-pulse">
+                      Listening...
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={toggleListening}
+                  className={`p-2 mr-2 rounded-lg flex items-center justify-center transition-colors shrink-0 ${isListening ? 'text-amber-600 bg-amber-50' : 'text-slate-400 hover:text-amber-600 hover:bg-slate-100'}`}
                 >
-                  {t('nav_login')}
-                </Link>
-              )}
+                  {isListening ? (
+                    <span className="relative flex h-5 w-5 items-center justify-center">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                    </span>
+                  ) : (
+                    <span className="material-symbols-outlined text-[20px]">mic</span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* ── Right: Profile ── */}
+            <div className="hidden md:flex items-center gap-4 shrink-0">
+              
+              {/* Profile / Auth */}
+              <div className="relative" ref={profileRef}>
+                {currentUser ? (
+                  <>
+                    <button 
+                      onClick={() => setShowProfileMenu(!showProfileMenu)}
+                      className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 hover:bg-slate-200 hover:border-slate-300 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[24px] text-slate-600">person</span>
+                    </button>
+                    <AnimatePresence>
+                      {showProfileMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right z-50 overflow-hidden"
+                        >
+                          <div className="p-4 border-b border-slate-100 bg-slate-50">
+                            <p className="font-bold text-slate-900 truncate">{currentUser.name || 'User'}</p>
+                            <p className="text-xs text-slate-500 font-medium truncate">{currentUser.email || currentUser.phone}</p>
+                          </div>
+                          <div className="p-2 space-y-1">
+                            <Link to={currentUser.dashboard} onClick={() => setShowProfileMenu(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                              <span className="material-symbols-outlined text-[20px] text-slate-400">dashboard</span>
+                              Dashboard
+                            </Link>
+                            <Link to="/my-bookings" onClick={() => setShowProfileMenu(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                              <span className="material-symbols-outlined text-[20px] text-slate-400">receipt_long</span>
+                              My Bookings
+                            </Link>
+                          </div>
+                          <div className="p-2 border-t border-slate-100">
+                            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-colors">
+                              <span className="material-symbols-outlined text-[20px]">logout</span>
+                              Logout
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </>
+                ) : (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowProfileMenu(!showProfileMenu)}
+                      className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-xl transition-all text-xs whitespace-nowrap"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">person</span>
+                      Login
+                      <span className="material-symbols-outlined text-[14px]">expand_more</span>
+                    </button>
+                    <AnimatePresence>
+                      {showProfileMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right z-50 overflow-hidden"
+                        >
+                          <div className="p-2 space-y-1">
+                            <Link
+                              to="/auth"
+                              onClick={() => setShowProfileMenu(false)}
+                              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined text-[18px] text-amber-600">person</span>
+                              </div>
+                              <div>
+                                <p className="font-extrabold text-slate-800">Login as User</p>
+                                <p className="text-[11px] text-slate-400 font-medium">Book services & rentals</p>
+                              </div>
+                            </Link>
+                            <Link
+                              to="/provider/auth"
+                              onClick={() => setShowProfileMenu(false)}
+                              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-brand transition-colors"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined text-[18px] text-brand">handyman</span>
+                              </div>
+                              <div>
+                                <p className="font-extrabold text-slate-800">Login as Provider</p>
+                                <p className="text-[11px] text-slate-400 font-medium">Manage your services</p>
+                              </div>
+                            </Link>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Mobile menu button */}
@@ -261,7 +500,13 @@ export default function Layout({ children }) {
                     <button onClick={handleLogout} className="block w-full text-left px-4 py-3.5 rounded-2xl text-sm font-semibold text-red-600 hover:bg-red-50">{t('nav_logout')}</button>
                   </>
                 ) : (
-                  <Link className="block px-4 py-3.5 mt-4 rounded-2xl text-sm font-semibold text-brand bg-accent text-center" to="/auth">{t('nav_login')}</Link>
+                  <>
+                    <Link className="flex items-center justify-center gap-2 px-4 py-3.5 mt-4 rounded-2xl text-sm font-semibold text-amber-600 border-2 border-amber-500 text-center" to="/provider/auth">
+                      <span className="material-symbols-outlined text-[18px]">handyman</span>
+                      Provider Login
+                    </Link>
+                    <Link className="block px-4 py-3.5 mt-2 rounded-2xl text-sm font-semibold text-brand bg-accent text-center" to="/auth">{t('nav_login')}</Link>
+                  </>
                 )}
               </div>
             </motion.div>
@@ -322,7 +567,20 @@ export default function Layout({ children }) {
               </div>
             </div>
 
-            <div className="mt-16 pt-8 border-t border-slate-200/60 flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* App Store and Payment Badges */}
+            <div className="mt-12 flex flex-col md:flex-row justify-between items-center gap-8 border-t border-slate-200/60 pt-10">
+              <div className="flex gap-4">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" alt="App Store" className="h-10 cursor-pointer hover:opacity-80 transition-opacity" />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Google Play" className="h-10 cursor-pointer hover:opacity-80 transition-opacity" />
+              </div>
+              <div className="flex items-center gap-4 opacity-60 grayscale hover:grayscale-0 transition-all duration-300">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-4" />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo-vector.svg" alt="UPI" className="h-5" />
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-slate-200/60 flex flex-col md:flex-row items-center justify-between gap-4">
               <p className="text-sm font-medium text-slate-400">{t('footer_copyright')}</p>
               <p className="text-sm font-medium text-slate-400 flex items-center gap-1">{t('footer_made_in')} <span className="text-base">🇮🇳</span></p>
             </div>
