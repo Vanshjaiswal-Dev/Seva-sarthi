@@ -52,5 +52,21 @@ export const useProviderStore = create((set, get) => ({
       console.error('Failed to get provider', err);
       return null;
     }
+  },
+
+  aiSearchIntent: async (query) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await api.post('/ai/extract-intent', { query });
+      set({ loading: false });
+      if (response.success) {
+        return response.data;
+      }
+      return null;
+    } catch (err) {
+      console.error('AI Search error', err);
+      set({ error: err.response?.data?.message || 'Failed to extract intent', loading: false });
+      return null;
+    }
   }
 }));

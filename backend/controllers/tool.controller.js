@@ -9,7 +9,8 @@ const getAllTools = asyncHandler(async (req, res) => {
   if (category && category !== 'All') query.category = category;
   if (status) query.status = status;
   if (search) {
-    const r = new RegExp(search, 'i');
+    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const r = new RegExp(`(?:^|[\\s\\-_/,&()])${escaped}`, 'i');
     query.$or = [{ name: r }, { description: r }];
   }
 

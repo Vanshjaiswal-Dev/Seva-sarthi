@@ -35,10 +35,10 @@ const providers = [
     image: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=2070&auto=format&fit=crop',
     badgeKeys: ['badge_priority', 'badge_15yr_exp'],
     quote: "Arrived on time and fixed the leak perfectly." },
-  { name: 'Priya M.', roleKey: 'role_salon_expert', rating: 4.9, price: '₹599/hr',
-    image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070&auto=format&fit=crop',
+  { name: 'Priya M.', roleKey: 'role_painting_expert', rating: 4.9, price: '₹599/hr',
+    image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=2070&auto=format&fit=crop',
     badgeKeys: ['badge_premium', 'badge_verified'],
-    quote: "Amazing spa experience at home. So relaxing." },
+    quote: "Beautiful wall textures and very clean work!" },
 ];
 
 const toolsData = [
@@ -151,18 +151,17 @@ export default function LandingPage() {
         if (data.success && data.data.length > 0) {
           setHomeOffers(data.data);
         } else {
-          // Fallback static offers if backend is empty
           setHomeOffers([
             { _id: 'fallback1', title: 'Summer AC Service Sale', subtitle: 'Get flat ₹200 off on all AC services', code: 'SUMMER200', imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2070' },
             { _id: 'fallback2', title: 'Deep Cleaning Special', subtitle: 'Book any home cleaning service and get a free fridge clean', code: 'CLEANFREE', imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=2070' },
-            { _id: 'fallback3', title: 'Salon at Home', subtitle: 'Pamper yourself with flat 15% off', code: 'GLOW15', imageUrl: 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?q=80&w=2070' }
+            { _id: 'fallback3', title: 'Home Painting', subtitle: 'Refresh your walls with flat 15% off', code: 'PAINT15', imageUrl: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=2070' }
           ]);
         }
       } catch {
         setHomeOffers([
           { _id: 'fallback1', title: 'Summer AC Service Sale', subtitle: 'Get flat ₹200 off on all AC services', code: 'SUMMER200', imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2070' },
           { _id: 'fallback2', title: 'Deep Cleaning Special', subtitle: 'Book any home cleaning service and get a free fridge clean', code: 'CLEANFREE', imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=2070' },
-          { _id: 'fallback3', title: 'Salon at Home', subtitle: 'Pamper yourself with flat 15% off', code: 'GLOW15', imageUrl: 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?q=80&w=2070' }
+          { _id: 'fallback3', title: 'Home Painting', subtitle: 'Refresh your walls with flat 15% off', code: 'PAINT15', imageUrl: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=2070' }
         ]);
       }
     };
@@ -240,12 +239,12 @@ export default function LandingPage() {
           <div className="w-full lg:w-[58%] hidden lg:block">
             <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={1} className="grid grid-cols-2 gap-4 h-[520px]">
               <div className="flex flex-col gap-4 h-full">
-                <img src="https://images.unsplash.com/photo-1522337660859-02fbefca4702?q=80&w=800&auto=format&fit=crop" alt="Spa and Wellness" className="w-full h-[55%] object-cover rounded-[2rem] shadow-sm hover:shadow-xl transition-shadow duration-300" />
+                <img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=800&auto=format&fit=crop" alt="AC & Appliance Repair" className="w-full h-[55%] object-cover rounded-[2rem] shadow-sm hover:shadow-xl transition-shadow duration-300" />
                 <img src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop" alt="Home Cleaning" className="w-full h-[43%] object-cover rounded-[2rem] shadow-sm hover:shadow-xl transition-shadow duration-300" />
               </div>
               <div className="flex flex-col gap-4 h-full">
                 <img src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=800&auto=format&fit=crop" alt="Handyman Repair" className="w-full h-[43%] object-cover rounded-[2rem] shadow-sm hover:shadow-xl transition-shadow duration-300" />
-                <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800&auto=format&fit=crop" alt="Relaxing Massage" className="w-full h-[55%] object-cover rounded-[2rem] shadow-sm hover:shadow-xl transition-shadow duration-300" />
+                <img src="https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=800&auto=format&fit=crop" alt="Home Painting" className="w-full h-[55%] object-cover rounded-[2rem] shadow-sm hover:shadow-xl transition-shadow duration-300" />
               </div>
             </motion.div>
           </div>

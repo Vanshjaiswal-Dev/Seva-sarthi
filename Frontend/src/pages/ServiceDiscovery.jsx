@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { allCategories, getCategoryItems } from '../lib/constants';
+import { searchAndFilter } from '../lib/searchEngine';
 
 function ProCardSkeleton() {
   return (
@@ -28,7 +29,7 @@ export default function ServiceDiscovery() {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser } = useAuthStore();
-  const { services, loading: isLoading, fetchServices } = useProviderStore();
+  const { services, loading: isLoading, fetchServices, aiSearchIntent } = useProviderStore();
   const { t } = useLanguageStore();
 
   // State from navigation
@@ -41,6 +42,7 @@ export default function ServiceDiscovery() {
   const [maxPrice, setMaxPrice] = useState(5000);
   const [sortBy, setSortBy] = useState('relevance');
   const [minRating, setMinRating] = useState(0);
+  const [isAiSearching, setIsAiSearching] = useState(false);
 
   useEffect(() => {
     fetchServices();
@@ -77,70 +79,38 @@ export default function ServiceDiscovery() {
     window.history.replaceState({}, document.title);
   };
 
-  /* ── INDUSTRY-LEVEL FILTERING ── */
-  const filteredServices = useMemo(() => {
-    let results = services.filter(svc => {
-      const nameText = (svc.name || '').toLowerCase();
-      const descText = (svc.description || '').toLowerCase();
-      const proNameText = (svc.providerId?.name || '').toLowerCase();
-      const catText = (svc.category || '').toLowerCase();
-
-      // 1. DB Category filter (hard match)
-      if (dbCategoryFilter) {
-        if (svc.category !== dbCategoryFilter) return false;
+  const handleAiSearch = async () => {
+    if (!searchTerm.trim()) return;
+    setIsAiSearching(true);
+    
+    const intent = await aiSearchIntent(searchTerm);
+    setIsAiSearching(false);
+    
+    if (intent && intent.success) {
+      if (intent.category && intent.category !== 'General' && intent.category !== 'Tool Rental') {
+        setDbCategoryFilter(intent.category);
+        setKeywordsFilter([]);
+        setDisplayName(intent.category);
       }
-
-      // 2. Keyword filter (soft match within DB category)
-      if (keywordsFilter.length > 0 && dbCategoryFilter) {
-        const hasKeywordMatch = keywordsFilter.some(kw =>
-          nameText.includes(kw.toLowerCase()) || descText.includes(kw.toLowerCase())
-        );
-        // Only apply keyword filtering for broad categories
-        const broadCategories = ['Appliance Repair', 'Professional Cleaning', 'Home Maintenance'];
-        if (broadCategories.includes(dbCategoryFilter) && !hasKeywordMatch) {
-          return false;
-        }
+      if (intent.search) {
+        setSearchTerm(intent.search);
       }
-
-      // 3. Text search (fuzzy across all fields)
-      if (searchTerm.trim()) {
-        const words = searchTerm.toLowerCase().split(/\s+/).filter(w => w.length > 1);
-        if (words.length > 0) {
-          const matchesAny = words.some(word =>
-            nameText.includes(word) ||
-            descText.includes(word) ||
-            proNameText.includes(word) ||
-            catText.includes(word)
-          );
-          if (!matchesAny) return false;
-        }
+      if (intent.category === 'Tool Rental') {
+        navigate('/rentals', { state: { query: intent.search }});
       }
-
-      // 4. Price filter
-      if (svc.basePrice > maxPrice) return false;
-
-      // 5. Rating filter
-      if ((svc.rating || 5) < minRating) return false;
-
-      return true;
-    });
-
-    // If keyword filter returned 0 results but we have a DB category, fall back to showing all in that category
-    if (results.length === 0 && dbCategoryFilter && keywordsFilter.length > 0) {
-      results = services.filter(svc => {
-        if (svc.category !== dbCategoryFilter) return false;
-        if (svc.basePrice > maxPrice) return false;
-        if ((svc.rating || 5) < minRating) return false;
-        return true;
-      });
     }
+  };
 
-    // Sort
-    const sorted = [...results];
-    if (sortBy === 'lowestPrice') sorted.sort((a, b) => a.basePrice - b.basePrice);
-    if (sortBy === 'highestPrice') sorted.sort((a, b) => b.basePrice - a.basePrice);
-    if (sortBy === 'highestRated') sorted.sort((a, b) => (b.rating || 5) - (a.rating || 5));
-    return sorted;
+  /* ── INDUSTRY-LEVEL SMART FILTERING (powered by searchEngine) ── */
+  const filteredServices = useMemo(() => {
+    return searchAndFilter(services, searchTerm, {
+      dbCategory: dbCategoryFilter,
+      keywords: keywordsFilter,
+      maxPrice,
+      minRating,
+      sortBy,
+      priceField: 'basePrice',
+    });
   }, [services, searchTerm, dbCategoryFilter, keywordsFilter, maxPrice, minRating, sortBy]);
 
   const isFiltered = searchTerm || dbCategoryFilter;
@@ -174,18 +144,37 @@ export default function ServiceDiscovery() {
                 <span className="material-symbols-outlined pl-4 text-slate-400">search</span>
                 <input
                   type="text"
-                  placeholder="Search for services or professionals..."
+                  placeholder="Describe what you need help with..."
                   className="flex-grow px-3 py-3 bg-transparent border-none focus:ring-0 text-slate-800 font-medium text-sm"
                   value={searchTerm}
                   onChange={(e) => { setSearchTerm(e.target.value); if (e.target.value) { setDbCategoryFilter(''); setKeywordsFilter([]); setDisplayName(''); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAiSearch();
+                  }}
                 />
-                {searchTerm && (
+                {searchTerm && !isAiSearching && (
                   <button onClick={() => setSearchTerm('')} className="p-1 mr-1 text-slate-400 hover:text-slate-600">
                     <span className="material-symbols-outlined text-xl">close</span>
                   </button>
                 )}
-                <button className="bg-slate-900 text-white px-5 py-3 font-bold text-sm hover:bg-slate-800 transition-colors">Search</button>
+                {isAiSearching && (
+                  <div className="p-1 mr-2 flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+                <button 
+                  onClick={handleAiSearch}
+                  disabled={isAiSearching || !searchTerm.trim()}
+                  className="bg-slate-900 text-white px-4 py-3 font-bold text-sm hover:bg-slate-800 transition-colors flex items-center gap-1.5 disabled:opacity-70"
+                >
+                  <span className="material-symbols-outlined text-amber-400 text-[18px]">auto_awesome</span>
+                  AI Search
+                </button>
               </div>
+              <p className="text-xs text-slate-500 mt-2 font-medium flex items-center gap-1.5 pl-2">
+                <span className="material-symbols-outlined text-[14px] text-amber-500">lightbulb</span>
+                Try: "my fan is making noise", "need to fix leaking tap", "wash my sofa"
+              </p>
             </div>
           </div>
         </div>

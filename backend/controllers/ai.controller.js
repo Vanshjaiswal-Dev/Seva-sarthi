@@ -80,7 +80,34 @@ const analyzeIssueImage = asyncHandler(async (req, res) => {
   });
 });
 
+// ── POST /api/ai/extract-intent ───────────────────────────────────
+// Extracts category and search keywords from natural language
+const extractIntent = asyncHandler(async (req, res) => {
+  const { query } = req.body;
+
+  if (!query || typeof query !== 'string' || query.trim().length === 0) {
+    throw new ApiError(400, 'Search query is required.');
+  }
+
+  if (query.trim().length > 200) {
+    throw new ApiError(400, 'Query too long. Please keep it under 200 characters.');
+  }
+
+  const { extractSearchIntent } = require('../services/ai.service');
+  const result = await extractSearchIntent(query.trim());
+
+  if (!result.success) {
+    throw new ApiError(500, result.error || 'Intent extraction failed.');
+  }
+
+  res.json({
+    success: true,
+    data: result,
+  });
+});
+
 module.exports = {
   chat,
   analyzeIssueImage,
+  extractIntent,
 };

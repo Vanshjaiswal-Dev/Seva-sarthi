@@ -9,6 +9,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { openRazorpayCheckout } from '../lib/razorpay';
 import { validateName, validatePhone, validateAddress, validatePincode, validateCity, validateAadhaar, validatePAN, cleanPhone, digitsOnly } from '../lib/validators';
 import { toolCategoriesMap } from '../lib/constants';
+import { searchAndFilter } from '../lib/searchEngine';
 
 const RENTALS_STORAGE_KEY = 'sevaSarthi.rentals.v1';
 
@@ -692,26 +693,14 @@ export default function ToolRentalPage() {
   }, [activeCategory, fetchTools]);
 
   const filteredTools = useMemo(() => {
-    const base = tools.filter(tool => {
-      const matchesCategory = activeCategory === "All" || tool.category === activeCategory;
-      const q = searchQuery.trim().toLowerCase();
-      const matchesSearch =
-        q.length === 0 ||
-        tool.name.toLowerCase().includes(q) ||
-        (tool.description && tool.description.toLowerCase().includes(q));
-      
-      const matchesPrice = (tool.dailyRate || 0) <= maxPrice;
-      const matchesCondition = condition === "All" || tool.condition === condition;
-      const matchesAvailability = !onlyAvailable || tool.status === 'available';
-
-      return matchesCategory && matchesSearch && matchesPrice && matchesCondition && matchesAvailability;
+    return searchAndFilter(tools, searchQuery, {
+      dbCategory: activeCategory !== 'All' ? activeCategory : '',
+      maxPrice,
+      sortBy,
+      priceField: 'dailyRate',
+      condition,
+      onlyAvailable,
     });
-
-    const sorted = [...base];
-    if (sortBy === "priceLowHigh") sorted.sort((a, b) => a.dailyRate - b.dailyRate);
-    if (sortBy === "priceHighLow") sorted.sort((a, b) => b.dailyRate - a.dailyRate);
-    // Note: If rating exists in data, we could sort by rating. For now, stick to price and relevance.
-    return sorted;
   }, [tools, activeCategory, searchQuery, maxPrice, condition, onlyAvailable, sortBy]);
 
   const removeFilter = (type, value) => {

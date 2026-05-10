@@ -3,48 +3,6 @@
 
 export const heroCategories = [
   {
-    id: 'salon-spa',
-    title: "Women's Salon & Spa",
-    icon: "face",
-    modal: [
-      {
-        subtitle: null,
-        items: [
-          { name: "Salon for Women", icon: "face", dbCategory: "Professional Cleaning", keywords: ["salon", "women", "hair", "facial", "waxing", "beauty", "makeup", "bridal"] },
-          { name: "Spa for Women", icon: "spa", dbCategory: "Professional Cleaning", keywords: ["spa", "women", "massage", "relax", "therapy", "body"] },
-        ]
-      }
-    ]
-  },
-  {
-    id: 'massage-men',
-    title: "Massage for Men",
-    icon: "self_improvement",
-    modal: [
-      {
-        subtitle: null,
-        items: [
-          { name: "Massage for Men", icon: "self_improvement", dbCategory: "Home Maintenance", keywords: ["massage", "men", "relax", "body", "therapy"] },
-        ]
-      }
-    ]
-  },
-  {
-    id: 'cleaning',
-    title: "Cleaning",
-    icon: "cleaning_services",
-    modal: [
-      {
-        subtitle: null,
-        items: [
-          { name: "Bathroom & Kitchen Cleaning", icon: "countertops", dbCategory: "Professional Cleaning", keywords: ["bathroom", "kitchen", "cleaning", "deep", "scrub", "toilet"] },
-          { name: "Sofa & Carpet Cleaning", icon: "weekend", dbCategory: "Professional Cleaning", keywords: ["sofa", "carpet", "cleaning", "upholstery", "fabric", "steam"] },
-          { name: "Full Home Cleaning", icon: "home", dbCategory: "Professional Cleaning", keywords: ["home", "full", "cleaning", "deep", "complete"] },
-        ]
-      }
-    ]
-  },
-  {
     id: 'appliance',
     title: "AC & Appliance Repair",
     icon: "ac_unit",
@@ -52,17 +10,17 @@ export const heroCategories = [
       {
         subtitle: "Large appliances",
         items: [
-          { name: "AC", icon: "ac_unit", dbCategory: "Appliance Repair", keywords: ["ac", "air conditioner", "air conditioning", "cooling", "split", "window ac"] },
-          { name: "Washing Machine", icon: "local_laundry_service", dbCategory: "Appliance Repair", keywords: ["washing", "machine", "washer", "laundry"] },
-          { name: "Refrigerator Repair", icon: "kitchen", dbCategory: "Appliance Repair", keywords: ["fridge", "refrigerator", "cooling", "freezer"] },
+          { name: "AC", icon: "ac_unit", dbCategory: "Appliance Repair", keywords: ["ac", "air conditioner", "air conditioning", "split ac", "window ac", "ac servicing", "ac repair", "ac cleaning", "ac gas", "thanda", "thandi"] },
+          { name: "Washing Machine", icon: "local_laundry_service", dbCategory: "Appliance Repair", keywords: ["washing machine", "washer", "laundry", "dhulai", "kapde"] },
+          { name: "Refrigerator Repair", icon: "kitchen", dbCategory: "Appliance Repair", keywords: ["fridge", "refrigerator", "freezer", "fridge repair"] },
         ]
       },
       {
         subtitle: "Other appliances",
         items: [
-          { name: "Microwave", icon: "microwave", dbCategory: "Appliance Repair", keywords: ["microwave", "oven"] },
-          { name: "RO/Water Purifier", icon: "water_drop", dbCategory: "Appliance Repair", keywords: ["ro", "water", "purifier", "filter"] },
-          { name: "Geyser", icon: "hot_tub", dbCategory: "Appliance Repair", keywords: ["geyser", "water heater", "heater"] },
+          { name: "Microwave", icon: "microwave", dbCategory: "Appliance Repair", keywords: ["microwave", "oven", "microwave oven"] },
+          { name: "RO/Water Purifier", icon: "water_drop", dbCategory: "Appliance Repair", keywords: ["ro", "water purifier", "water filter", "purifier", "ro service"] },
+          { name: "Geyser", icon: "hot_tub", dbCategory: "Appliance Repair", keywords: ["geyser", "water heater", "heater", "garam pani"] },
         ]
       }
     ]
@@ -75,80 +33,60 @@ export const heroCategories = [
       {
         subtitle: "Home repairs",
         items: [
-          { name: "Electrician", icon: "electrical_services", dbCategory: "Electrical Works", keywords: ["electrician", "wire", "switch", "fan", "light", "electrical", "wiring", "mcb"] },
-          { name: "Plumber", icon: "plumbing", dbCategory: "Plumbing", keywords: ["plumber", "pipe", "leak", "tap", "sink", "water", "plumbing", "drain"] },
-          { name: "Carpenter", icon: "carpenter", dbCategory: "Carpentry", keywords: ["carpenter", "wood", "furniture", "door", "cabinet", "carpentry"] },
+          { name: "Electrician", icon: "electrical_services", dbCategory: "Electrical Works", keywords: ["electrician", "wire", "switch", "fan", "light", "electrical", "wiring", "mcb", "bijli", "bijli wala", "pankha", "bijlee"] },
+          { name: "Plumber", icon: "plumbing", dbCategory: "Plumbing", keywords: ["plumber", "pipe", "leak", "tap", "sink", "water", "plumbing", "drain", "nalkaa", "nal", "pani wala", "nali", "paip"] },
+          { name: "Carpenter", icon: "carpenter", dbCategory: "Carpentry", keywords: ["carpenter", "wood", "furniture", "door", "cabinet", "carpentry", "mistri", "lakdi", "darwaza", "almari"] },
         ]
       },
       {
         subtitle: "Home installation",
         items: [
-          { name: "Furniture Assembly", icon: "table_restaurant", dbCategory: "Carpentry", keywords: ["furniture", "assembly", "install", "setup", "table", "bed"] },
-          { name: "Painting", icon: "format_paint", dbCategory: "Painting", keywords: ["paint", "painting", "wall", "color", "whitewash", "distemper"] },
+          { name: "Furniture Assembly", icon: "table_restaurant", dbCategory: "Carpentry", keywords: ["furniture", "assembly", "install", "setup", "table", "bed", "almaari"] },
         ]
       }
     ]
   },
-];
-
-// Extra categories shown only in "All services" modal
-export const extraCategories = [
   {
-    id: 'pest-control',
-    title: "Pest Control",
-    icon: "pest_control",
+    id: 'cleaning-pest',
+    title: "Cleaning & Pest Control",
+    icon: "cleaning_services",
     modal: [
       {
-        subtitle: null,
+        subtitle: "Deep Cleaning",
         items: [
-          { name: "Cockroach Control", icon: "pest_control", dbCategory: "Pest Control", keywords: ["cockroach", "pest", "bug", "insect", "spray"] },
-          { name: "Termite Control", icon: "bug_report", dbCategory: "Pest Control", keywords: ["termite", "pest", "wood", "anti-termite"] },
-          { name: "General Pest Control", icon: "pest_control", dbCategory: "Pest Control", keywords: ["pest", "control", "bug", "insect", "mosquito"] },
+          { name: "Bathroom & Kitchen Cleaning", icon: "countertops", dbCategory: "Professional Cleaning", keywords: ["bathroom", "kitchen", "toilet", "washroom", "chimney", "countertop", "bathroom safai"] },
+          { name: "Sofa & Carpet Cleaning", icon: "weekend", dbCategory: "Professional Cleaning", keywords: ["sofa", "carpet", "upholstery", "fabric", "steam", "couch", "rug", "sofa safai"] },
+          { name: "Full Home Cleaning", icon: "home", dbCategory: "Professional Cleaning", keywords: ["full home", "2bhk", "3bhk", "whole house", "complete home", "poora ghar", "ghar safai"] },
+        ]
+      },
+      {
+        subtitle: "Pest Control",
+        items: [
+          { name: "Cockroach Control", icon: "pest_control", dbCategory: "Pest Control", keywords: ["cockroach", "roach", "spray", "makodi", "cockroach marna"] },
+          { name: "Termite Control", icon: "bug_report", dbCategory: "Pest Control", keywords: ["termite", "anti-termite", "deemak", "white ant"] },
+          { name: "General Pest Control", icon: "pest_control", dbCategory: "Pest Control", keywords: ["mosquito", "bed bug", "ant", "rat", "rodent", "keede", "macchar", "chuha"] },
         ]
       }
     ]
   },
   {
     id: 'painting',
-    title: "Painting",
+    title: "Painting & Waterproofing",
     icon: "format_paint",
     modal: [
       {
         subtitle: null,
         items: [
-          { name: "Full Home Painting", icon: "format_paint", dbCategory: "Painting", keywords: ["paint", "home", "wall", "full", "room"] },
-          { name: "Waterproofing", icon: "water_damage", dbCategory: "Painting", keywords: ["waterproof", "seepage", "leak", "wall", "terrace"] },
+          { name: "Full Home Painting", icon: "format_paint", dbCategory: "Painting", keywords: ["paint", "home", "wall", "full", "room", "rang", "rangai", "deewar"] },
+          { name: "Waterproofing", icon: "water_damage", dbCategory: "Painting", keywords: ["waterproof", "seepage", "leak", "wall", "terrace", "pani rishna"] },
         ]
       }
     ]
-  },
-  {
-    id: 'gardening',
-    title: "Gardening & Landscaping",
-    icon: "yard",
-    modal: [
-      {
-        subtitle: null,
-        items: [
-          { name: "Garden Maintenance", icon: "yard", dbCategory: "Gardening & Landscaping", keywords: ["garden", "plant", "lawn", "grass", "landscaping", "trim"] },
-        ]
-      }
-    ]
-  },
-  {
-    id: 'home-maintenance',
-    title: "Home Maintenance",
-    icon: "home_repair_service",
-    modal: [
-      {
-        subtitle: null,
-        items: [
-          { name: "General Maintenance", icon: "home_repair_service", dbCategory: "Home Maintenance", keywords: ["home", "maintenance", "repair", "handyman", "general"] },
-        ]
-      }
-    ]
-  },
+  }
 ];
+
+// Extra categories shown only in "All services" modal (Currently empty for simplified MVP)
+export const extraCategories = [];
 
 // Combined list for "All services" modal
 export const allCategories = [...heroCategories, ...extraCategories];
@@ -202,14 +140,14 @@ export const mostBookedServices = [
 
 export const categoryShowcases = [
   {
-    id: "salon",
-    title: "Salon for Women",
-    subtitle: "Premium beauty services at home",
+    id: "repairs",
+    title: "Home Repairs",
+    subtitle: "Electricians, Plumbers & Carpenters",
     items: [
-      { id: 101, title: "Waxing & Threading", price: "₹499", image: "https://images.unsplash.com/photo-1540555627-84a1e9447bd1?q=80&w=400&auto=format&fit=crop" },
-      { id: 102, title: "Facial & Cleanup", price: "₹899", image: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=400&auto=format&fit=crop" },
-      { id: 103, title: "Manicure & Pedicure", price: "₹699", image: "https://images.unsplash.com/photo-1522337660859-02fbefca4702?q=80&w=400&auto=format&fit=crop" },
-      { id: 104, title: "Haircut & Styling", price: "₹599", image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400&auto=format&fit=crop" },
+      { id: 101, title: "Switch & Board Repair", price: "₹99", image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=400&auto=format&fit=crop" },
+      { id: 102, title: "Tap & Pipe Leakage", price: "₹149", image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=400&auto=format&fit=crop" },
+      { id: 103, title: "Fan Installation", price: "₹199", image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=400&auto=format&fit=crop" },
+      { id: 104, title: "Furniture Assembly", price: "₹299", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop" },
     ]
   },
   {

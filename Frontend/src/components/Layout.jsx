@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useNotificationStore } from '../store/useNotificationStore';
 import { useLocationStore } from '../store/useLocationStore';
+import { useProviderStore } from '../store/useProviderStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import LocationModal from './LocationModal';
 import { heroCategories, getCategoryItems, toolCategoriesMap, allCategories } from '../lib/constants';
@@ -13,6 +14,7 @@ export default function Layout({ children }) {
   const { currentUser, logout } = useAuthStore();
   const { language, toggleLanguage, setLanguage, t } = useLanguageStore();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationStore();
+  const { aiSearchIntent } = useProviderStore();
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,6 +26,7 @@ export default function Layout({ children }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [manualCity, setManualCity] = useState('');
   const [navSearchQuery, setNavSearchQuery] = useState('');
+  const [isAiSearching, setIsAiSearching] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   
   const placeholders = [
@@ -135,6 +138,33 @@ export default function Layout({ children }) {
         recognitionRef.current.start();
         setIsListening(true);
       }
+    }
+  };
+
+  const handleNavAiSearch = async () => {
+    if (!navSearchQuery.trim()) return;
+    setIsAiSearching(true);
+    
+    const intent = await aiSearchIntent(navSearchQuery);
+    setIsAiSearching(false);
+    
+    if (intent && intent.success) {
+      if (intent.category === 'Tool Rental') {
+        navigate('/rentals', { state: { query: intent.search }});
+      } else {
+        navigate('/services', { 
+          state: { 
+            dbCategory: intent.category !== 'General' ? intent.category : '',
+            query: intent.search || '',
+            displayName: intent.category !== 'General' ? intent.category : ''
+          }
+        });
+      }
+      setNavSearchQuery('');
+    } else {
+      // Fallback
+      navigate('/services', { state: { query: navSearchQuery } });
+      setNavSearchQuery('');
     }
   };
 
@@ -334,10 +364,28 @@ export default function Layout({ children }) {
                   )}
                 </div>
 
+                {/* AI Search Button */}
+                {isAiSearching ? (
+                  <div className="p-2 mr-1 flex items-center justify-center shrink-0">
+                    <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : (
+                  <button 
+                    type="button"
+                    onClick={handleNavAiSearch}
+                    disabled={!navSearchQuery.trim()}
+                    className="p-1.5 mr-1 rounded-lg flex items-center justify-center transition-colors shrink-0 text-slate-400 hover:text-amber-600 hover:bg-amber-50 disabled:opacity-50 disabled:hover:bg-transparent"
+                    title="AI Smart Search"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
+                  </button>
+                )}
+
+                {/* Voice Search Button */}
                 <button 
                   type="button"
                   onClick={toggleListening}
-                  className={`p-2 mr-2 rounded-lg flex items-center justify-center transition-colors shrink-0 ${isListening ? 'text-amber-600 bg-amber-50' : 'text-slate-400 hover:text-amber-600 hover:bg-slate-100'}`}
+                  className={`p-1.5 mr-2 rounded-lg flex items-center justify-center transition-colors shrink-0 ${isListening ? 'text-amber-600 bg-amber-50' : 'text-slate-400 hover:text-amber-600 hover:bg-slate-100'}`}
                 >
                   {isListening ? (
                     <span className="relative flex h-5 w-5 items-center justify-center">
@@ -354,6 +402,73 @@ export default function Layout({ children }) {
             {/* ── Right: Profile ── */}
             <div className="hidden md:flex items-center gap-4 shrink-0">
               
+              {/* Notifications */}
+              {currentUser && (
+                <div className="relative" ref={notifRef}>
+                  <button
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 hover:bg-slate-200 hover:border-slate-300 transition-all relative"
+                  >
+                    <span className="material-symbols-outlined text-[24px] text-slate-600">notifications</span>
+                    {unreadCount > 0 && (
+                      <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+                    )}
+                  </button>
+                  <AnimatePresence>
+                    {showNotifications && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right z-50 overflow-hidden flex flex-col max-h-[400px]"
+                      >
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 sticky top-0 z-10">
+                          <h3 className="font-bold text-slate-800">Notifications</h3>
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={() => markAllAsRead()}
+                              className="text-xs font-semibold text-brand hover:text-brand-dark"
+                            >
+                              Mark all as read
+                            </button>
+                          )}
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-2">
+                          {notifications && notifications.length > 0 ? (
+                            notifications.map((notif) => (
+                              <div
+                                key={notif._id || notif.id}
+                                className={`p-3 rounded-xl mb-1 cursor-pointer transition-colors ${
+                                  !notif.read ? 'bg-amber-50/50 hover:bg-amber-50' : 'hover:bg-slate-50'
+                                }`}
+                                onClick={() => {
+                                  if (!notif.read) markAsRead(notif._id || notif.id);
+                                }}
+                              >
+                                <div className="flex justify-between items-start mb-1">
+                                  <h4 className={`text-sm ${!notif.read ? 'font-bold text-slate-800' : 'font-semibold text-slate-600'}`}>
+                                    {notif.title}
+                                  </h4>
+                                </div>
+                                <p className={`text-xs ${!notif.read ? 'text-slate-600 font-medium' : 'text-slate-500'}`}>
+                                  {notif.message}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-8 text-center flex flex-col items-center justify-center">
+                              <span className="material-symbols-outlined text-4xl text-slate-200 mb-2">notifications_off</span>
+                              <p className="text-sm text-slate-500 font-medium">No notifications yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
               {/* Profile / Auth */}
               <div className="relative" ref={profileRef}>
                 {currentUser ? (

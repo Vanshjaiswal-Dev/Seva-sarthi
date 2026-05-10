@@ -10,27 +10,33 @@ const asyncHandler = require('../utils/asyncHandler');
 // @route   GET /api/services
 // @access  Public
 const getAllServices = asyncHandler(async (req, res) => {
-  const { category, city } = req.query;
+  const { category, city, search } = req.query;
   const query = { isActive: true, approvalStatus: 'approved' };
   if (category) query.category = category;
+
+  // Word-boundary search — prevents "ac" from matching "machine"
+  if (search) {
+    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const r = new RegExp(`(?:^|[\\s\\-_/,&()])${escaped}`, 'i');
+    query.$or = [{ name: r }, { description: r }, { category: r }];
+  }
 
   let services = await Service.find(query).sort({ category: 1, name: 1 }).populate('providerId', 'name avatar');
 
   if (city) {
-
-    const usersInCity = await User.find({ 
-      'address.city': { $regex: new RegExp(`^${city}$`, 'i') },
-      role: 'provider'
-    }).select('_id');
+    const providersInCity = await Provider.find({ 
+      city: { $regex: new RegExp(`^${city}$`, 'i') }
+    }).select('userId');
     
-    const userIds = usersInCity.map(u => u._id);
+    const userIds = providersInCity.map(p => p.userId);
 
     if (userIds.length > 0) {
       services = services.filter(service => 
-        service.providerId && userIds.some(id => id.equals(service.providerId._id))
+        service.providerId && userIds.some(id => id.equals(service.providerId._id || service.providerId))
       );
     } else {
-      services = [];
+      // For demo purposes: do not clear services if city has no providers
+      // services = [];
     }
   }
 

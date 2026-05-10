@@ -50,8 +50,8 @@ export default function ProviderProfile() {
     return <div className="min-h-screen flex items-center justify-center font-bold text-rose-500">Provider not found</div>;
   }
 
-  const proName = provider.user?.name || 'Professional';
-  const avatar = provider.user?.avatar || `https://ui-avatars.com/api/?name=${proName}&background=0D8B8B&color=fff`;
+  const proName = provider.userId?.name || provider.user?.name || 'Professional';
+  const avatar = provider.userId?.avatar || provider.user?.avatar || `https://ui-avatars.com/api/?name=${proName}&background=0D8B8B&color=fff`;
   const role = provider.title || 'Service Expert';
   const minPrice = provider.pricePerHour || 0;
   const years = provider.experience || 'New';
