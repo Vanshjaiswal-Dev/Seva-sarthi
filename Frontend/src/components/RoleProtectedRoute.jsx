@@ -27,7 +27,10 @@ export default function RoleProtectedRoute({ allowedRoles, children }) {
 
   if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {
     if (!allowedRoles.includes(currentUser.role)) {
-      return <Navigate to={currentUser.dashboard || '/'} replace />;
+      const dashboardPath = currentUser.role === 'provider' ? '/provider/dashboard'
+        : currentUser.role === 'admin' ? '/admin/dashboard'
+        : '/user/dashboard';
+      return <Navigate to={dashboardPath} replace />;
     }
   }
 

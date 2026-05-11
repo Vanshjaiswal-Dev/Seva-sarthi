@@ -10,6 +10,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import LocationModal from './LocationModal';
 import { heroCategories, getCategoryItems, toolCategoriesMap, allCategories } from '../lib/constants';
 
+// Derive dashboard path from role (DB field may be stale for seeded users)
+const getDashboardPath = (user) => {
+  if (!user) return '/';
+  if (user.role === 'provider') return '/provider/dashboard';
+  if (user.role === 'admin') return '/admin/dashboard';
+  return '/user/dashboard';
+};
+
 export default function Layout({ children }) {
   const { currentUser, logout } = useAuthStore();
   const { language, toggleLanguage, setLanguage, t } = useLanguageStore();
@@ -493,7 +501,7 @@ export default function Layout({ children }) {
                             <p className="text-xs text-slate-500 font-medium truncate">{currentUser.email || currentUser.phone}</p>
                           </div>
                           <div className="p-2 space-y-1">
-                            <Link to={currentUser.dashboard} onClick={() => setShowProfileMenu(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                            <Link to={getDashboardPath(currentUser)} onClick={() => setShowProfileMenu(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
                               <span className="material-symbols-outlined text-[20px] text-slate-400">dashboard</span>
                               Dashboard
                             </Link>
@@ -611,7 +619,7 @@ export default function Layout({ children }) {
                 <NavLink className="block px-4 py-3.5 rounded-2xl text-sm font-semibold text-brand hover:bg-slate-100 transition-colors" to="/rentals">{t('nav_rentals')}</NavLink>
                 {currentUser ? (
                   <>
-                    <Link className="block px-4 py-3.5 rounded-2xl text-sm font-semibold text-accent-dark bg-accent/10" to={currentUser.dashboard}>{t('nav_dashboard')}</Link>
+                    <Link className="block px-4 py-3.5 rounded-2xl text-sm font-semibold text-accent-dark bg-accent/10" to={getDashboardPath(currentUser)}>{t('nav_dashboard')}</Link>
                     <button onClick={handleLogout} className="block w-full text-left px-4 py-3.5 rounded-2xl text-sm font-semibold text-red-600 hover:bg-red-50">{t('nav_logout')}</button>
                   </>
                 ) : (

@@ -16,11 +16,23 @@ export default function ProviderDashboard() {
   const { currentUser, providerStatus } = useAuthStore();
   const navigate = useNavigate();
 
+  const { setProviderStatus } = useAuthStore();
+
   useEffect(() => {
+    // If cached status isn't approved, double-check with backend before redirecting
     if (providerStatus !== 'approved') {
-      navigate('/provider/onboarding-status', { replace: true });
+      api.get('/providers/onboarding-status').then(res => {
+        const freshStatus = res?.data?.verificationStatus;
+        if (freshStatus === 'approved') {
+          setProviderStatus('approved');
+        } else {
+          navigate('/provider/onboarding-status', { replace: true });
+        }
+      }).catch(() => {
+        navigate('/provider/onboarding-status', { replace: true });
+      });
     }
-  }, [providerStatus, navigate]);
+  }, [providerStatus, navigate, setProviderStatus]);
 
   const { t: tr, language } = useLanguageStore();
   const [requests, setRequests] = useState([]);

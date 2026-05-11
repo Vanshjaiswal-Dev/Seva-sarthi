@@ -87,6 +87,7 @@ async function seed() {
           phone: pData.phone,
           password: pData.password,
           role: ROLES.PROVIDER,
+          dashboard: '/provider/dashboard',
           isVerified: true,
           isPhoneVerified: true,
           isActive: true
@@ -94,9 +95,10 @@ async function seed() {
         await user.save();
         console.log(`Created User: ${user.name}`);
       } else {
+        user.dashboard = '/provider/dashboard';
         user.address = { ...user.address, city: pData.city };
         await user.save();
-        console.log(`Updated User: ${user.name} (City: ${user.address.city})`);
+        console.log(`Updated User: ${user.name} (Dashboard: ${user.dashboard}, City: ${user.address.city})`);
       }
 
       // 2. Create Provider Profile
@@ -110,7 +112,7 @@ async function seed() {
           phone: pData.phone,
           city: pData.city,
           primaryCategory: pData.primaryCategory,
-          verificationStatus: PROVIDER_STATUS.PENDING, // As requested: admin will accept
+          verificationStatus: PROVIDER_STATUS.APPROVED,
           category: pData.primaryCategory,
           bio: pData.bio,
           rating: 0,
@@ -123,7 +125,7 @@ async function seed() {
         console.log(`Created Provider Profile: ${provider.businessName}`);
       } else {
         // Ensure status is pending and city is updated for demo
-        provider.verificationStatus = PROVIDER_STATUS.PENDING;
+        provider.verificationStatus = PROVIDER_STATUS.APPROVED;
         provider.city = pData.city;
         provider.rating = 0;
         provider.reviewCount = 0;
